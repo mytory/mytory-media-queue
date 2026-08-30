@@ -228,7 +228,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><div><p className="eyebrow">Mytory yt-dlp</p><h1>유튜브, SNS 영상 다운로더</h1></div></div>
+        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><h1>Mytory yt-dlp GUI</h1></div>
         <div className="queue-meter" aria-label={`진행 ${activeCount}개, 대기 ${queuedCount}개`}><span className="meter-dot" /><span>진행 {activeCount}</span><span className="meter-divider">/</span><span>대기 {queuedCount}</span></div>
       </header>
 
@@ -239,11 +239,11 @@ function App() {
           <div className="form-options">
             <label className="destination-field"><span>저장 위치</span><div className="destination-picker"><input value={destination} readOnly required /><button type="button" onClick={() => void chooseDestination()}>폴더 선택</button></div></label>
             <label className="subs-field"><span>부가 파일</span><label className="subs-toggle"><input type="checkbox" checked={writeSubs} onChange={(event) => setWriteSubs(event.target.checked)} /><span>자막 저장 · 한국어·영어 (.vtt)</span></label></label>
-            <label className="cookie-field"><span>로그인 쿠키 (선택)</span><div className="cookie-picker"><button type="button" onClick={() => void chooseCookies()} title={cookies}>{cookies ? cookies.split(/[\\/]/).pop() : "cookies.txt 선택"}</button>{cookies ? <button type="button" onClick={() => setCookies("")}>해제</button> : null}</div></label>
             <label><span>형식</span><select value={outputPreset} onChange={(event) => setOutputPreset(event.target.value as OutputPreset)}><option value="mp4_compatible">MP4 호환 우선</option><option value="best_video">최고 품질 영상</option><option value="original_audio">원본 품질 오디오</option><option value="mp3_320">MP3 320kbps</option></select></label>
             <label className="concurrency"><span>동시 작업</span><select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}개</option>)}</select></label>
           </div>
           <div className="form-footer"><p>기본 형식: MP4 호환 · 썸네일 저장</p><button type="submit" disabled={submitting}>{submitting ? "대기열에 넣는 중" : "대기열에 추가"}<span>→</span></button></div>
+          <label className="cookie-field"><span>로그인 쿠키 (선택)</span><div className="cookie-picker"><button type="button" onClick={() => void chooseCookies()} title={cookies}>{cookies ? cookies.split(/[\\/]/).pop() : "cookies.txt 선택"}</button>{cookies ? <button type="button" onClick={() => setCookies("")}>해제</button> : null}</div></label>
         </form>
 
         <section className="queue-card" aria-labelledby="queue-heading">
