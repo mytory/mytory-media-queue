@@ -19,16 +19,19 @@ jobs:
             tauri_args: --target universal-apple-darwin
             artifact: macos-universal
             bundles: dmg
+            bundle_dir: src-tauri/target/universal-apple-darwin/release/bundle
           - platform: windows-latest
             rust_targets: x86_64-pc-windows-msvc
             tauri_args: ""
             artifact: windows-x86_64
             bundles: nsis,msi
+            bundle_dir: src-tauri/target/release/bundle
           - platform: ubuntu-22.04
             rust_targets: x86_64-unknown-linux-gnu
             tauri_args: ""
             artifact: linux-x86_64
             bundles: deb,appimage
+            bundle_dir: src-tauri/target/release/bundle
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -75,12 +78,12 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            src-tauri/target/release/bundle/**/*.app
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.deb
+            ${{ matrix.bundle_dir }}/**/*.app
+            ${{ matrix.bundle_dir }}/**/*.dmg
+            ${{ matrix.bundle_dir }}/**/*.exe
+            ${{ matrix.bundle_dir }}/**/*.msi
+            ${{ matrix.bundle_dir }}/**/*.AppImage
+            ${{ matrix.bundle_dir }}/**/*.deb
           if-no-files-found: error
 
       - name: Attach to GitHub Release
@@ -88,9 +91,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            src-tauri/target/release/bundle/**/*.app
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.deb
+            ${{ matrix.bundle_dir }}/**/*.app
+            ${{ matrix.bundle_dir }}/**/*.dmg
+            ${{ matrix.bundle_dir }}/**/*.exe
+            ${{ matrix.bundle_dir }}/**/*.msi
+            ${{ matrix.bundle_dir }}/**/*.AppImage
+            ${{ matrix.bundle_dir }}/**/*.deb
