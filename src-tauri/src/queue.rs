@@ -184,6 +184,30 @@ impl DownloadQueue {
         Ok(jobs)
     }
 
+    pub fn update_progress(
+        &self,
+        id: &str,
+        percent: Option<f32>,
+        speed_bytes_per_second: Option<u64>,
+        eta_seconds: Option<u64>,
+    ) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute(
+            "UPDATE download_jobs SET progress_percent = ?2, speed_bytes_per_second = ?3, eta_seconds = ?4, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'running'",
+            params![id, percent.map(f64::from), speed_bytes_per_second.map(|value| value as i64), eta_seconds.map(|value| value as i64)],
+        )?;
+        Ok(())
+    }
+
+    pub fn mark_completed(&self, id: &str) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute("UPDATE download_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'running'", [id])?;
+        Ok(())
+    }
+
+    pub fn mark_failed(&self, id: &str) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute("UPDATE download_jobs SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'running'", [id])?;
+        Ok(())
+    }
+
     pub fn cancel(&self, id: &str) -> Result<()> {
         self.connection.lock().expect("queue lock poisoned").execute("UPDATE download_jobs SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status IN ('queued', 'running')", [id])?;
         Ok(())

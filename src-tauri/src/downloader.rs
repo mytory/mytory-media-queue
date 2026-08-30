@@ -17,6 +17,7 @@ const OUTPUT_CHANNEL_CAPACITY: usize = 16;
 pub struct DownloaderRequest {
     pub url: String,
     pub destination: PathBuf,
+    pub output_preset: crate::OutputPreset,
 }
 
 impl DownloaderRequest {
@@ -24,7 +25,13 @@ impl DownloaderRequest {
         Self {
             url: url.into(),
             destination: destination.as_ref().to_path_buf(),
+            output_preset: crate::OutputPreset::Mp4Compatible,
         }
+    }
+
+    pub fn with_preset(mut self, output_preset: crate::OutputPreset) -> Self {
+        self.output_preset = output_preset;
+        self
     }
 }
 
@@ -147,9 +154,33 @@ impl DownloaderRunner {
         F: FnMut(&DownloaderEvent),
     {
         let output_template = request.destination.join("%(title)s.%(ext)s");
-        let mut child = Command::new(&self.executable)
+        let mut command = Command::new(&self.executable);
+        command
             .args(["--newline", "--progress-template", PROGRESS_TEMPLATE, "-o"])
-            .arg(output_template)
+            .arg(output_template);
+        match request.output_preset {
+            crate::OutputPreset::Mp4Compatible => {
+                command.args(["-f", "bv*+ba/b", "--merge-output-format", "mp4"]);
+            }
+            crate::OutputPreset::BestVideo => {
+                command.args(["-f", "bv*+ba/b"]);
+            }
+            crate::OutputPreset::OriginalAudio => {
+                command.args(["-f", "ba/b"]);
+            }
+            crate::OutputPreset::Mp3_320 => {
+                command.args([
+                    "-f",
+                    "ba/b",
+                    "-x",
+                    "--audio-format",
+                    "mp3",
+                    "--audio-quality",
+                    "320K",
+                ]);
+            }
+        }
+        let mut child = command
             .arg("--")
             .arg(&request.url)
             .stdout(Stdio::piped())
@@ -159,7 +190,6 @@ impl DownloaderRunner {
                 executable: self.executable.clone(),
                 source,
             })?;
-
         let stdout = child.stdout.take().expect("stdout is piped");
         let stderr = child.stderr.take().expect("stderr is piped");
         let (sender, receiver) = mpsc::sync_channel(OUTPUT_CHANNEL_CAPACITY);

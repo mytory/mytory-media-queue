@@ -5,7 +5,7 @@ import "./App.css";
 
 type DownloadStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 type OutputPreset = "mp4_compatible" | "best_video" | "original_audio" | "mp3_320";
-type QueueJob = { id: string; source_url: string; destination: string; status: DownloadStatus };
+type QueueJob = { id: string; source_url: string; destination: string; status: DownloadStatus; progress_percent: number | null }; 
 
 const statusLabel: Record<DownloadStatus, string> = {
   queued: "대기 중",
@@ -37,6 +37,8 @@ function App() {
     void Promise.all([invoke<string>("default_download_destination"), refresh()])
       .then(([path]) => setDestination(path))
       .catch((reason) => setError(String(reason)));
+    const interval = window.setInterval(() => void refresh(), 1000);
+    return () => window.clearInterval(interval);
   }, []);
 
   async function submit(event: FormEvent) {
@@ -94,7 +96,7 @@ function App() {
           <div className="form-heading"><span>새 작업</span><p>주소를 한 줄에 하나씩 붙여 넣으세요.</p></div>
           <label className="url-field"><span>미디어 URL</span><textarea value={urls} onChange={(event) => setUrls(event.target.value)} placeholder={"https://…\nhttps://…"} required /></label>
           <div className="form-options">
-            <label><span>저장 위치</span><div className="destination-picker"><input value={destination} readOnly required /><button type="button" onClick={() => void chooseDestination()}>폴더 선택</button></div></label>
+            <label className="destination-field"><span>저장 위치</span><div className="destination-picker"><input value={destination} readOnly required /><button type="button" onClick={() => void chooseDestination()}>폴더 선택</button></div></label>
             <label><span>형식</span><select value={outputPreset} onChange={(event) => setOutputPreset(event.target.value as OutputPreset)}><option value="mp4_compatible">MP4 호환 우선</option><option value="best_video">최고 품질 영상</option><option value="original_audio">원본 품질 오디오</option><option value="mp3_320">MP3 320kbps</option></select></label>
             <label className="concurrency"><span>동시 작업</span><select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}개</option>)}</select></label>
           </div>
@@ -103,7 +105,7 @@ function App() {
 
         <section className="queue-card" aria-labelledby="queue-heading">
           <div className="queue-heading"><div><p className="eyebrow">QUEUE / {jobs.length.toString().padStart(2, "0")}</p><h2 id="queue-heading">작업 목록</h2></div><button className="quiet-button" type="button" onClick={() => void refresh()}>새로고침</button></div>
-          {jobs.length ? <ol className="job-list">{jobs.map((job, index) => <li key={job.id}><span className="job-index">{String(index + 1).padStart(2, "0")}</span><div className="job-content"><strong>{job.source_url}</strong><small>{job.destination}</small></div><span className={`status status-${job.status}`}>{statusLabel[job.status]}</span></li>)}</ol> : <div className="empty-state"><span>↓</span><h3>아직 작업이 없습니다</h3><p>위에 URL을 입력하면 이곳에서 순서와 상태를 확인할 수 있습니다.</p></div>}
+          {jobs.length ? <ol className="job-list">{jobs.map((job, index) => <li key={job.id}><span className="job-index">{String(index + 1).padStart(2, "0")}</span><div className="job-content"><strong>{job.source_url}</strong><small>{job.destination}</small></div><span className={`status status-${job.status}`}>{job.status === "running" && job.progress_percent !== null ? `${Math.round(job.progress_percent)}%` : statusLabel[job.status]}</span></li>)}</ol> : <div className="empty-state"><span>↓</span><h3>아직 작업이 없습니다</h3><p>위에 URL을 입력하면 이곳에서 순서와 상태를 확인할 수 있습니다.</p></div>}
         </section>
       </section>
       {error && <p className="error" role="alert">{error}</p>}
