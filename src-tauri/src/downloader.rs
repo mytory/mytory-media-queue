@@ -32,6 +32,7 @@ pub struct DownloaderRequest {
     pub write_thumbnail: bool,
     pub write_subs: bool,
     pub cookies: Option<PathBuf>,
+    pub ffmpeg_location: Option<PathBuf>,
 }
 
 impl DownloaderRequest {
@@ -43,6 +44,7 @@ impl DownloaderRequest {
             write_thumbnail: true,
             write_subs: false,
             cookies: None,
+            ffmpeg_location: None,
         }
     }
 
@@ -58,6 +60,11 @@ impl DownloaderRequest {
 
     pub fn with_cookies(mut self, cookies: Option<PathBuf>) -> Self {
         self.cookies = cookies;
+        self
+    }
+
+    pub fn with_ffmpeg_location(mut self, location: Option<PathBuf>) -> Self {
+        self.ffmpeg_location = location;
         self
     }
 }
@@ -233,6 +240,9 @@ impl DownloaderRunner {
         }
         if let Some(cookies) = &request.cookies {
             command.arg("--cookies").arg(cookies);
+        }
+        if let Some(location) = &request.ffmpeg_location {
+            command.arg("--ffmpeg-location").arg(location);
         }
         match request.output_preset {
             crate::OutputPreset::Mp4Compatible => {

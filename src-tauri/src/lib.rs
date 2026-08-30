@@ -134,6 +134,33 @@ fn set_download_concurrency(concurrency: u8, state: State<'_, AppState>) -> Resu
     Ok(changed)
 }
 
+fn resolve_sidecar(app: &tauri::App, name: &str) -> Option<PathBuf> {
+    for candidate in [format!("binaries/{name}"), format!("binaries/{name}.exe")] {
+        if let Ok(path) = app
+            .path()
+            .resolve(candidate, tauri::path::BaseDirectory::Resource)
+        {
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+fn resolve_ffmpeg_dir(app: &tauri::App) -> Option<PathBuf> {
+    let dir = app
+        .path()
+        .resolve("binaries", tauri::path::BaseDirectory::Resource)
+        .ok()?;
+    let has_ffmpeg = dir.join("ffmpeg").is_file() || dir.join("ffmpeg.exe").is_file();
+    if dir.is_dir() && has_ffmpeg {
+        Some(dir)
+    } else {
+        None
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -145,8 +172,10 @@ pub fn run() {
             let queue = Arc::new(DownloadQueue::open(data_dir.join("downloads.sqlite"))?);
             let executable = std::env::var_os("MYTORY_DOWNLOADER_PATH")
                 .map(PathBuf::from)
+                .or_else(|| resolve_sidecar(app, "yt-dlp"))
                 .unwrap_or_else(|| PathBuf::from("yt-dlp"));
-            let service = DownloadService::new(queue.clone(), executable);
+            let service = DownloadService::new(queue.clone(), executable)
+                .with_ffmpeg_location(resolve_ffmpeg_dir(app));
             service.start_available()?;
             app.manage(AppState { queue, service });
             Ok(())

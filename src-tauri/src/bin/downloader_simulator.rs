@@ -72,6 +72,18 @@ fn main() {
             }
             println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
         }
+        "simulator://ffmpeg-location" => {
+            if !arguments
+                .windows(2)
+                .any(|arguments| arguments[0] == "--ffmpeg-location" && !arguments[1].is_empty())
+            {
+                fail(
+                    "unknown",
+                    "Simulator did not receive the ffmpeg location argument.",
+                );
+            }
+            println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
+        }
         "simulator://slow-success" => {
             println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
             sleep(Duration::from_secs(2));

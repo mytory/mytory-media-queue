@@ -150,6 +150,17 @@ fn prefers_h264_and_aac_for_the_mp4_compatible_preset() {
 }
 
 #[test]
+fn passes_ffmpeg_location_to_the_downloader() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://ffmpeg-location", "/downloads")
+        .with_ffmpeg_location(Some(PathBuf::from("/resources/binaries")));
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(run.succeeded);
+}
+
+#[test]
 fn passes_cookie_file_only_to_the_downloader_process() {
     let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
     let request = DownloaderRequest::new("simulator://cookies", "/downloads")

@@ -18,6 +18,7 @@ const MAX_AUTO_RETRIES: u32 = 3;
 pub struct DownloadService {
     queue: Arc<DownloadQueue>,
     executable: PathBuf,
+    ffmpeg_dir: Option<PathBuf>,
     cancellations: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     cookie_sources: Arc<Mutex<HashMap<String, PathBuf>>>,
 }
@@ -27,9 +28,15 @@ impl DownloadService {
         Self {
             queue,
             executable: executable.into(),
+            ffmpeg_dir: None,
             cancellations: Arc::new(Mutex::new(HashMap::new())),
             cookie_sources: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn with_ffmpeg_location(mut self, location: Option<PathBuf>) -> Self {
+        self.ffmpeg_dir = location;
+        self
     }
 
     pub fn remember_cookie_source(&self, job_id: &str, cookies: PathBuf) {
@@ -58,7 +65,8 @@ impl DownloadService {
                 let request = DownloaderRequest::new(&job.source_url, &job.destination)
                     .with_preset(job.output_preset.clone())
                     .with_subtitles(job.write_subs)
-                    .with_cookies(cookies);
+                    .with_cookies(cookies)
+                    .with_ffmpeg_location(service.ffmpeg_dir.clone());
                 let result = DownloaderRunner::new(&service.executable).run_with_cancellation(
                     &request,
                     cancellation,
