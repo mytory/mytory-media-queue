@@ -49,6 +49,36 @@ fn enqueuing_many_urls_assigns_each_job_a_unique_identifier() {
 }
 
 #[test]
+fn persists_each_output_preset() {
+    let queue = DownloadQueue::in_memory().unwrap();
+    for preset in [
+        OutputPreset::Mp4Compatible,
+        OutputPreset::BestVideo,
+        OutputPreset::OriginalAudio,
+        OutputPreset::Mp3_320,
+    ] {
+        let job = queue
+            .enqueue_with_preset(
+                &["https://example.test/video".into()],
+                Path::new("/downloads"),
+                preset.clone(),
+            )
+            .unwrap()
+            .remove(0);
+        assert_eq!(
+            queue
+                .jobs()
+                .unwrap()
+                .iter()
+                .find(|saved| saved.id == job.id)
+                .unwrap()
+                .output_preset,
+            preset
+        );
+    }
+}
+
+#[test]
 fn accepts_more_urls_while_an_existing_job_is_running() {
     let queue = DownloadQueue::in_memory().unwrap();
     let first = queue

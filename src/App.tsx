@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import "./App.css";
 
 type DownloadStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+type OutputPreset = "mp4_compatible" | "best_video" | "original_audio" | "mp3_320";
 type QueueJob = { id: string; source_url: string; destination: string; status: DownloadStatus };
 
 const statusLabel: Record<DownloadStatus, string> = {
@@ -19,6 +20,7 @@ function App() {
   const [destination, setDestination] = useState("");
   const [jobs, setJobs] = useState<QueueJob[]>([]);
   const [concurrency, setConcurrency] = useState(3);
+  const [outputPreset, setOutputPreset] = useState<OutputPreset>("mp4_compatible");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,7 +50,7 @@ function App() {
     setSubmitting(true);
     setError("");
     try {
-      await invoke("enqueue_downloads", { request: { urls: entries, destination: normalizedDestination } });
+      await invoke("enqueue_downloads", { request: { urls: entries, destination: normalizedDestination, outputPreset } });
       setUrls("");
       await refresh();
     } catch (reason) {
@@ -93,6 +95,7 @@ function App() {
           <label className="url-field"><span>미디어 URL</span><textarea value={urls} onChange={(event) => setUrls(event.target.value)} placeholder={"https://…\nhttps://…"} required /></label>
           <div className="form-options">
             <label><span>저장 위치</span><div className="destination-picker"><input value={destination} readOnly required /><button type="button" onClick={() => void chooseDestination()}>폴더 선택</button></div></label>
+            <label><span>형식</span><select value={outputPreset} onChange={(event) => setOutputPreset(event.target.value as OutputPreset)}><option value="mp4_compatible">MP4 호환 우선</option><option value="best_video">최고 품질 영상</option><option value="original_audio">원본 품질 오디오</option><option value="mp3_320">MP3 320kbps</option></select></label>
             <label className="concurrency"><span>동시 작업</span><select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}개</option>)}</select></label>
           </div>
           <div className="form-footer"><p>기본 형식: MP4 호환 · 썸네일 저장</p><button type="submit" disabled={submitting}>{submitting ? "대기열에 넣는 중" : "대기열에 추가"}<span>→</span></button></div>

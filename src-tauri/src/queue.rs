@@ -10,6 +10,28 @@ use crate::migrate;
 #[serde(rename_all = "snake_case")]
 pub enum OutputPreset {
     Mp4Compatible,
+    BestVideo,
+    OriginalAudio,
+    Mp3_320,
+}
+
+impl OutputPreset {
+    fn database_value(&self) -> &'static str {
+        match self {
+            Self::Mp4Compatible => "mp4_compatible",
+            Self::BestVideo => "best_video",
+            Self::OriginalAudio => "original_audio",
+            Self::Mp3_320 => "mp3_320",
+        }
+    }
+    fn from_database(value: &str) -> Self {
+        match value {
+            "best_video" => Self::BestVideo,
+            "original_audio" => Self::OriginalAudio,
+            "mp3_320" => Self::Mp3_320,
+            _ => Self::Mp4Compatible,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -57,6 +79,15 @@ impl DownloadQueue {
     }
 
     pub fn enqueue(&self, urls: &[String], destination: &Path) -> Result<Vec<QueueJob>> {
+        self.enqueue_with_preset(urls, destination, OutputPreset::Mp4Compatible)
+    }
+
+    pub fn enqueue_with_preset(
+        &self,
+        urls: &[String],
+        destination: &Path,
+        output_preset: OutputPreset,
+    ) -> Result<Vec<QueueJob>> {
         let destination = destination.to_string_lossy().into_owned();
         let connection = self.connection.lock().expect("queue lock poisoned");
         let transaction = connection.unchecked_transaction()?;
@@ -67,14 +98,14 @@ impl DownloadQueue {
             }
             let id = format!("job-{}", Uuid::new_v4());
             transaction.execute(
-                "INSERT INTO download_jobs (id, source_url, destination, output_preset, status, created_at, updated_at) VALUES (?1, ?2, ?3, 'mp4_compatible', 'queued', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                params![id, url, destination],
+                "INSERT INTO download_jobs (id, source_url, destination, output_preset, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, 'queued', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                params![id, url, destination, output_preset.database_value()],
             )?;
             jobs.push(QueueJob {
                 id,
                 source_url: url.clone(),
                 destination: destination.clone(),
-                output_preset: OutputPreset::Mp4Compatible,
+                output_preset: output_preset.clone(),
                 status: DownloadStatus::Queued,
                 progress_percent: None,
                 speed_bytes_per_second: None,
@@ -123,25 +154,26 @@ impl DownloadQueue {
         if slots == 0 {
             return Ok(Vec::new());
         }
-        let mut statement = connection.prepare("SELECT id, source_url, destination FROM download_jobs WHERE status = 'queued' ORDER BY created_at, rowid LIMIT ?1")?;
+        let mut statement = connection.prepare("SELECT id, source_url, destination, output_preset FROM download_jobs WHERE status = 'queued' ORDER BY created_at, rowid LIMIT ?1")?;
         let queued = statement
             .query_map([slots], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
                 ))
             })?
             .collect::<Result<Vec<_>>>()?;
         let transaction = connection.unchecked_transaction()?;
         let mut jobs = Vec::with_capacity(queued.len());
-        for (id, source_url, destination) in queued {
+        for (id, source_url, destination, output_preset) in queued {
             transaction.execute("UPDATE download_jobs SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'queued'", [&id])?;
             jobs.push(QueueJob {
                 id,
                 source_url,
                 destination,
-                output_preset: OutputPreset::Mp4Compatible,
+                output_preset: OutputPreset::from_database(&output_preset),
                 status: DownloadStatus::Running,
                 progress_percent: None,
                 speed_bytes_per_second: None,
@@ -181,7 +213,7 @@ impl DownloadQueue {
                     id: row.get(0)?,
                     source_url: row.get(1)?,
                     destination: row.get(2)?,
-                    output_preset: OutputPreset::Mp4Compatible,
+                    output_preset: OutputPreset::from_database(&row.get::<_, String>(3)?),
                     status: match row.get::<_, String>(4)?.as_str() {
                         "running" => DownloadStatus::Running,
                         "completed" => DownloadStatus::Completed,

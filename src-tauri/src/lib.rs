@@ -20,6 +20,7 @@ struct AppState(DownloadQueue);
 struct EnqueueDownloadsRequest {
     urls: Vec<String>,
     destination: String,
+    output_preset: Option<OutputPreset>,
 }
 
 #[tauri::command]
@@ -29,7 +30,11 @@ fn enqueue_downloads(
 ) -> Result<Vec<QueueJob>, String> {
     state
         .0
-        .enqueue(&request.urls, Path::new(&request.destination))
+        .enqueue_with_preset(
+            &request.urls,
+            Path::new(&request.destination),
+            request.output_preset.unwrap_or(OutputPreset::Mp4Compatible),
+        )
         .map_err(|error| error.to_string())
 }
 
