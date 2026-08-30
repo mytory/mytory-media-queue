@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde::Deserialize;
-use tauri::{Manager, State};
+use tauri::{AppHandle, Manager, State};
 
 pub mod downloader;
 pub mod queue;
@@ -38,6 +38,27 @@ fn list_downloads(state: State<'_, AppState>) -> Result<Vec<QueueJob>, String> {
     state.0.jobs().map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn default_download_destination(app: AppHandle) -> Result<String, String> {
+    app.path()
+        .download_dir()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn get_download_concurrency(state: State<'_, AppState>) -> Result<u8, String> {
+    state.0.concurrency().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_download_concurrency(concurrency: u8, state: State<'_, AppState>) -> Result<bool, String> {
+    state
+        .0
+        .set_concurrency(concurrency)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -49,7 +70,13 @@ pub fn run() {
             )?));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![enqueue_downloads, list_downloads])
+        .invoke_handler(tauri::generate_handler![
+            enqueue_downloads,
+            list_downloads,
+            default_download_destination,
+            get_download_concurrency,
+            set_download_concurrency
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Mytory YT-DLP");
 }
