@@ -6,11 +6,9 @@
 
 배포자가 전달한 링크에서 사용 중인 운영체제에 맞는 파일 하나를 내려받으세요.
 
-| 운영체제 | 파일 |
-| --- | --- |
-| macOS (Apple Silicon·Intel) | `.dmg` |
-| Windows 64비트 | `.exe` 또는 `.msi` |
-| Linux 64비트 | `.AppImage` 또는 `.deb` |
+- **macOS (Apple Silicon·Intel)**: `.dmg`
+- **Windows 64비트**: `.exe` 또는 `.msi`
+- **Linux 64비트**: `.AppImage` 또는 `.deb`
 
 앱은 Downloader와 FFmpeg/FFprobe를 함께 포함하므로 별도로 설치할 필요가 없습니다.
 
