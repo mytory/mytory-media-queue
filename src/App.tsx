@@ -5,6 +5,14 @@ import "./App.css";
 type DownloadStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 type QueueJob = { id: string; source_url: string; destination: string; status: DownloadStatus };
 
+const statusLabel: Record<DownloadStatus, string> = {
+  queued: "대기 중",
+  running: "진행 중",
+  completed: "완료",
+  failed: "확인 필요",
+  cancelled: "취소됨",
+};
+
 function App() {
   const [urls, setUrls] = useState("");
   const [destination, setDestination] = useState("");
@@ -31,14 +39,15 @@ function App() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const entries = urls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
-    if (!entries.length || !destination.trim()) {
+    const normalizedDestination = destination.trim();
+    if (!entries.length || !normalizedDestination) {
       setError("URL과 저장 위치를 입력하세요.");
       return;
     }
     setSubmitting(true);
     setError("");
     try {
-      await invoke("enqueue_downloads", { request: { urls: entries, destination: destination.trim() } });
+      await invoke("enqueue_downloads", { request: { urls: entries, destination: normalizedDestination } });
       setUrls("");
       await refresh();
     } catch (reason) {
@@ -58,16 +67,35 @@ function App() {
     }
   }
 
-  return <main className="app-shell">
-    <header className="app-header"><div><p className="eyebrow">MYTORY YT-DLP</p><h1>Download Queue</h1></div></header>
-    <form className="add-form" onSubmit={submit}>
-      <label>URL <textarea value={urls} onChange={(event) => setUrls(event.target.value)} placeholder="한 줄에 URL 하나씩 입력하세요" required /></label>
-      <label>저장 위치 <input value={destination} onChange={(event) => setDestination(event.target.value)} required /></label>
-      <label>동시 다운로드 <select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1,2,3,4,5].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-      <button type="submit" disabled={submitting}>{submitting ? "추가 중…" : "URL 추가"}</button>
-    </form>
-    {error && <p className="error" role="alert">{error}</p>}
-    <section className="queue-card" aria-labelledby="queue-heading"><h2 id="queue-heading">작업 목록</h2>{jobs.length ? <ul>{jobs.map((job) => <li key={job.id}><strong>{job.status}</strong><span>{job.source_url}</span><small>{job.destination}</small></li>)}</ul> : <p>대기열이 비어 있습니다.</p>}</section>
-  </main>;
+  const activeCount = jobs.filter((job) => job.status === "running").length;
+  const queuedCount = jobs.filter((job) => job.status === "queued").length;
+
+  return (
+    <main className="app-shell">
+      <header className="app-header">
+        <div className="brand-lockup"><span className="brand-mark">↓</span><div><p className="eyebrow">MYTORY / DOWNLOAD DESK</p><h1>미디어 받기, 정리해서.</h1></div></div>
+        <div className="queue-meter" aria-label={`진행 ${activeCount}개, 대기 ${queuedCount}개`}><span className="meter-dot" /><span>진행 {activeCount}</span><span className="meter-divider">/</span><span>대기 {queuedCount}</span></div>
+      </header>
+
+      <section className="workspace" aria-label="다운로드 작업 영역">
+        <form className="add-form" onSubmit={submit}>
+          <div className="form-heading"><span>새 작업</span><p>주소를 한 줄에 하나씩 붙여 넣으세요.</p></div>
+          <label className="url-field"><span>미디어 URL</span><textarea value={urls} onChange={(event) => setUrls(event.target.value)} placeholder={"https://…\nhttps://…"} required /></label>
+          <div className="form-options">
+            <label><span>저장 위치</span><input value={destination} onChange={(event) => setDestination(event.target.value)} required /></label>
+            <label className="concurrency"><span>동시 작업</span><select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}개</option>)}</select></label>
+          </div>
+          <div className="form-footer"><p>기본 형식: MP4 호환 · 썸네일 저장</p><button type="submit" disabled={submitting}>{submitting ? "대기열에 넣는 중" : "대기열에 추가"}<span>→</span></button></div>
+        </form>
+
+        <section className="queue-card" aria-labelledby="queue-heading">
+          <div className="queue-heading"><div><p className="eyebrow">QUEUE / {jobs.length.toString().padStart(2, "0")}</p><h2 id="queue-heading">작업 목록</h2></div><button className="quiet-button" type="button" onClick={() => void refresh()}>새로고침</button></div>
+          {jobs.length ? <ol className="job-list">{jobs.map((job, index) => <li key={job.id}><span className="job-index">{String(index + 1).padStart(2, "0")}</span><div className="job-content"><strong>{job.source_url}</strong><small>{job.destination}</small></div><span className={`status status-${job.status}`}>{statusLabel[job.status]}</span></li>)}</ol> : <div className="empty-state"><span>↓</span><h3>아직 작업이 없습니다</h3><p>위에 URL을 입력하면 이곳에서 순서와 상태를 확인할 수 있습니다.</p></div>}
+        </section>
+      </section>
+      {error && <p className="error" role="alert">{error}</p>}
+    </main>
+  );
 }
+
 export default App;
