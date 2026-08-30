@@ -1,5 +1,6 @@
 use std::{
     path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
     time::{Duration, Instant},
 };
 
@@ -30,6 +31,7 @@ fn reports_progress_and_completion_from_the_downloader_simulator() {
                 DownloaderEvent::Succeeded { destination },
             ],
             succeeded: true,
+            diagnostic_log: None,
         }
     );
 }
@@ -57,6 +59,27 @@ fn accepts_raw_yt_dlp_progress_fields_when_the_total_size_is_only_an_estimate() 
 }
 
 #[test]
+fn accepts_yt_dlp_decimal_speed_and_eta_fields() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://decimal-progress", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(matches!(
+        run.events.as_slice(),
+        [
+            DownloaderEvent::Started { .. },
+            DownloaderEvent::Progress {
+                speed_bytes_per_second: Some(1_048_576),
+                eta_seconds: Some(12),
+                ..
+            },
+            DownloaderEvent::Succeeded { .. }
+        ]
+    ));
+}
+
+#[test]
 fn emits_progress_before_the_downloader_process_exits() {
     let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
     let request = DownloaderRequest::new("simulator://slow-success", "/downloads");
@@ -73,6 +96,128 @@ fn emits_progress_before_the_downloader_process_exits() {
 
     assert!(run.succeeded);
     assert!(progress_at.is_some_and(|elapsed| elapsed < Duration::from_secs(1)));
+}
+
+#[test]
+fn cancels_a_running_downloader_process() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://slow-success", "/downloads");
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let cancellation_signal = cancelled.clone();
+    let started_at = Instant::now();
+
+    let run = DownloaderRunner::new(simulator)
+        .run_with_cancellation(&request, cancelled, |event| {
+            if matches!(event, DownloaderEvent::Progress { .. }) {
+                cancellation_signal.store(true, std::sync::atomic::Ordering::Release);
+            }
+        })
+        .unwrap();
+
+    assert!(!run.succeeded);
+    assert!(started_at.elapsed() < Duration::from_secs(1));
+}
+
+#[test]
+fn writes_thumbnails_and_subtitles_only_when_requested() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+
+    let thumbnail = DownloaderRequest::new("simulator://success", "/downloads");
+    assert!(
+        DownloaderRunner::new(simulator.clone())
+            .run(&thumbnail)
+            .unwrap()
+            .succeeded
+    );
+
+    let with_subs = DownloaderRequest::new("simulator://subs", "/downloads").with_subtitles(true);
+    assert!(
+        DownloaderRunner::new(simulator.clone())
+            .run(&with_subs)
+            .unwrap()
+            .succeeded
+    );
+}
+
+#[test]
+fn prefers_h264_and_aac_for_the_mp4_compatible_preset() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://mp4-compatible", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(run.succeeded);
+}
+
+#[test]
+fn passes_cookie_file_only_to_the_downloader_process() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://cookies", "/downloads")
+        .with_cookies(Some(PathBuf::from("/private/cookies.txt")));
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(run.succeeded);
+    assert!(!format!("{run:?}").contains("/private/cookies.txt"));
+}
+
+#[test]
+fn classifies_raw_network_errors_as_transient_with_a_refined_diagnostic() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://raw-network-error", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(!run.succeeded);
+    assert!(matches!(
+        run.events.last(),
+        Some(DownloaderEvent::Failed {
+            kind: mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork,
+            message,
+        }) if message.contains("Name or service not known")
+    ));
+    assert!(run
+        .diagnostic_log
+        .as_deref()
+        .is_some_and(|log| log.contains("Name or service not known")));
+}
+
+#[test]
+fn classifies_raw_permission_errors_without_retaining_raw_secrets() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://raw-permission-error", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(!run.succeeded);
+    assert!(matches!(
+        run.events.last(),
+        Some(DownloaderEvent::Failed {
+            kind: mytory_yt_dlp_lib::DownloadFailureKind::Permission,
+            ..
+        })
+    ));
+    assert!(run
+        .diagnostic_log
+        .as_deref()
+        .is_some_and(|log| log.contains("Permission denied")));
+}
+
+#[test]
+fn classifies_unrecognized_errors_as_unknown() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://raw-unknown-error", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(!run.succeeded);
+    assert!(matches!(
+        run.events.last(),
+        Some(DownloaderEvent::Failed {
+            kind: mytory_yt_dlp_lib::DownloadFailureKind::Unknown,
+            message,
+        }) if message.contains("Video unavailable")
+    ));
 }
 
 #[test]

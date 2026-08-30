@@ -1,0 +1,1 @@
+ALTER TABLE download_jobs ADD COLUMN write_subs INTEGER NOT NULL DEFAULT 0;

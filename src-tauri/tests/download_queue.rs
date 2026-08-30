@@ -79,6 +79,95 @@ fn persists_each_output_preset() {
 }
 
 #[test]
+fn persists_the_subtitle_flag_and_failure_details() {
+    let queue = DownloadQueue::in_memory().unwrap();
+    let job = queue
+        .enqueue_with_options(
+            &["https://example.test/video".into()],
+            Path::new("/downloads"),
+            OutputPreset::Mp4Compatible,
+            true,
+        )
+        .unwrap()
+        .remove(0);
+    queue.mark_running(&job.id).unwrap();
+    queue
+        .mark_failed(
+            &job.id,
+            Some(mytory_yt_dlp_lib::DownloadFailureKind::Permission),
+            Some("Destination is not writable.".into()),
+        )
+        .unwrap();
+
+    let saved = queue.jobs().unwrap().remove(0);
+    assert!(saved.write_subs);
+    assert_eq!(
+        saved.failure_kind,
+        Some(mytory_yt_dlp_lib::DownloadFailureKind::Permission)
+    );
+    assert_eq!(
+        saved.diagnostic_log.as_deref(),
+        Some("Destination is not writable.")
+    );
+}
+
+#[test]
+fn retry_clears_failure_details_and_increments_the_attempt_count() {
+    let queue = DownloadQueue::in_memory().unwrap();
+    let job = queue
+        .enqueue(
+            &["https://example.test/video".into()],
+            Path::new("/downloads"),
+        )
+        .unwrap()
+        .remove(0);
+    queue.mark_running(&job.id).unwrap();
+    queue
+        .mark_failed(
+            &job.id,
+            Some(mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork),
+            Some("Temporary network interruption.".into()),
+        )
+        .unwrap();
+    assert_eq!(queue.jobs().unwrap()[0].status, DownloadStatus::Failed);
+
+    queue.retry(&job.id).unwrap();
+
+    let saved = queue.jobs().unwrap().remove(0);
+    assert_eq!(saved.status, DownloadStatus::Queued);
+    assert_eq!(saved.attempt_count, 1);
+    assert_eq!(saved.failure_kind, None);
+    assert_eq!(saved.diagnostic_log, None);
+}
+
+#[test]
+fn clears_only_terminal_history_and_keeps_active_work() {
+    let queue = DownloadQueue::in_memory().unwrap();
+    let completed = queue
+        .enqueue(
+            &["https://example.test/done".into()],
+            Path::new("/downloads"),
+        )
+        .unwrap()
+        .remove(0);
+    queue.mark_running(&completed.id).unwrap();
+    queue.mark_completed(&completed.id).unwrap();
+    queue
+        .enqueue(
+            &["https://example.test/pending".into()],
+            Path::new("/downloads"),
+        )
+        .unwrap();
+
+    let removed = queue.clear_history().unwrap();
+
+    assert_eq!(removed, 1);
+    let remaining = queue.jobs().unwrap();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].source_url, "https://example.test/pending");
+}
+
+#[test]
 fn accepts_more_urls_while_an_existing_job_is_running() {
     let queue = DownloadQueue::in_memory().unwrap();
     let first = queue

@@ -2,7 +2,7 @@
 
 개인 및 지인에게 비공개 배포하는, [yt-dlp](https://github.com/yt-dlp/yt-dlp) 기반의 로컬 우선 데스크톱 미디어 다운로드 도구입니다.
 
-> **개발 중**: 현재는 Download Queue의 영속화·재개·스케줄링 기반을 구현했습니다. 실제 yt-dlp/FFmpeg 번들, 다운로드 실행, 출력 옵션, 인증, Managed Update, 설치 패키지는 아직 완성되지 않았습니다.
+> **개발 중**: Download Queue 영속화·재개·스케줄링, 실제 다운로드 실행, 출력 옵션(썸네일·자막), 쿠키 파일, 실패 복구(3회 재시도·진단 로그), 이력 정리를 구현했습니다. yt-dlp/FFmpeg/Deno 번들, Managed Update, 설치 패키지는 아직 완성되지 않았습니다.
 
 ## 목표
 
@@ -18,12 +18,15 @@
 
 - Tauri 2 + React/TypeScript + Rust 앱 셸
 - SQLite 마이그레이션과 영속 **Download Queue**
-- 다중 URL 등록, MP4 호환 기본 Output Preset, FIFO 순서 보존
+- 다중 URL 등록, MP4 호환 기본 Output Preset(H.264 영상·AAC 오디오 우선), FIFO 순서 보존
 - 앱 시작 시 중단된 `running` 작업을 `queued`로 복구
 - 1~5 범위의 동시성 설정(기본 3) 및 FIFO 슬롯 할당 기반
-- 취소·재시도·90일 이전 완료 이력 정리 상태 전환 API
+- 실행 중인 Downloader 프로세스까지 종료하는 취소·제거, 사용자 재시도
+- 썸네일 기본 저장, 선택형 자막(한국어·영어, `.vtt`), 쿠키 파일(`cookies.txt`) 전달
+- 일시적 네트워크 오류 자동 재시도(최대 3회), 그 외 실패는 정제된 진단 로그 저장·복사·결과 폴더 열기
+- 완료·실패·취소 이력 지우기(파일은 삭제하지 않음)와 90일 이전 완료 이력 정리
 - 셸을 만들지 않고 고정 인수 목록으로 Downloader 프로세스를 실행하는 `DownloaderRunner`
-- 실제 네트워크 없이 프로세스 경계·진행률·성공·실패·중단을 재현하는 **Downloader Simulator**
+- 실제 네트워크 없이 프로세스 경계·진행률·성공·실패·중단·재시도를 재현하는 **Downloader Simulator**
 
 ## 개발 환경
 

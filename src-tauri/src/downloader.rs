@@ -1,10 +1,15 @@
+use serde::{Deserialize, Serialize};
 use std::{
     error::Error,
     fmt,
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::mpsc::{self, SyncSender},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, RecvTimeoutError, SyncSender},
+        Arc,
+    },
     thread,
 };
 
@@ -12,12 +17,21 @@ const PROGRESS_PREFIX: &str = "MYTORY_PROGRESS:";
 const FAILURE_PREFIX: &str = "MYTORY_FAILURE:";
 const PROGRESS_TEMPLATE: &str = "download:MYTORY_PROGRESS:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress.total_bytes_estimate)s:%(progress.speed)s:%(progress.eta)s";
 const OUTPUT_CHANNEL_CAPACITY: usize = 16;
+const CANCELLATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25);
+const MAX_STDERR_TAIL_LINES: usize = 30;
+const MAX_DIAGNOSTIC_CHARS: usize = 4000;
+// MP4 호환 우선: H.264 영상과 AAC 오디오를 먼저 고르고, 없으면 단계적으로 폴백한다.
+const MP4_COMPATIBLE_FORMAT: &str =
+    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*+ba[acodec^=mp4a]/bv*+ba/b";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DownloaderRequest {
     pub url: String,
     pub destination: PathBuf,
     pub output_preset: crate::OutputPreset,
+    pub write_thumbnail: bool,
+    pub write_subs: bool,
+    pub cookies: Option<PathBuf>,
 }
 
 impl DownloaderRequest {
@@ -26,11 +40,24 @@ impl DownloaderRequest {
             url: url.into(),
             destination: destination.as_ref().to_path_buf(),
             output_preset: crate::OutputPreset::Mp4Compatible,
+            write_thumbnail: true,
+            write_subs: false,
+            cookies: None,
         }
     }
 
     pub fn with_preset(mut self, output_preset: crate::OutputPreset) -> Self {
         self.output_preset = output_preset;
+        self
+    }
+
+    pub fn with_subtitles(mut self, write_subs: bool) -> Self {
+        self.write_subs = write_subs;
+        self
+    }
+
+    pub fn with_cookies(mut self, cookies: Option<PathBuf>) -> Self {
+        self.cookies = cookies;
         self
     }
 }
@@ -56,7 +83,8 @@ pub enum DownloaderEvent {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DownloadFailureKind {
     TransientNetwork,
     Permission,
@@ -64,10 +92,31 @@ pub enum DownloadFailureKind {
     Unknown,
 }
 
+impl DownloadFailureKind {
+    pub fn database_value(&self) -> &'static str {
+        match self {
+            Self::TransientNetwork => "transient_network",
+            Self::Permission => "permission",
+            Self::Interrupted => "interrupted",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    pub fn from_database(value: &str) -> Self {
+        match value {
+            "transient_network" => Self::TransientNetwork,
+            "permission" => Self::Permission,
+            "interrupted" => Self::Interrupted,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct DownloadRun {
     pub events: Vec<DownloaderEvent>,
     pub succeeded: bool,
+    pub diagnostic_log: Option<String>,
 }
 
 #[derive(Debug)]
@@ -148,6 +197,18 @@ impl DownloaderRunner {
     pub fn run_with_events<F>(
         &self,
         request: &DownloaderRequest,
+        on_event: F,
+    ) -> Result<DownloadRun, DownloaderError>
+    where
+        F: FnMut(&DownloaderEvent),
+    {
+        self.run_with_cancellation(request, Arc::new(AtomicBool::new(false)), on_event)
+    }
+
+    pub fn run_with_cancellation<F>(
+        &self,
+        request: &DownloaderRequest,
+        cancelled: Arc<AtomicBool>,
         mut on_event: F,
     ) -> Result<DownloadRun, DownloaderError>
     where
@@ -158,9 +219,24 @@ impl DownloaderRunner {
         command
             .args(["--newline", "--progress-template", PROGRESS_TEMPLATE, "-o"])
             .arg(output_template);
+        if request.write_thumbnail {
+            command.arg("--write-thumbnail");
+        }
+        if request.write_subs {
+            command.args([
+                "--write-subs",
+                "--sub-langs",
+                "ko,en",
+                "--convert-subs",
+                "vtt",
+            ]);
+        }
+        if let Some(cookies) = &request.cookies {
+            command.arg("--cookies").arg(cookies);
+        }
         match request.output_preset {
             crate::OutputPreset::Mp4Compatible => {
-                command.args(["-f", "bv*+ba/b", "--merge-output-format", "mp4"]);
+                command.args(["-f", MP4_COMPATIBLE_FORMAT, "--merge-output-format", "mp4"]);
             }
             crate::OutputPreset::BestVideo => {
                 command.args(["-f", "bv*+ba/b"]);
@@ -204,8 +280,18 @@ impl DownloaderRunner {
         on_event(&started);
         events.push(started);
         let mut safe_failure = None;
+        let mut stderr_tail: Vec<String> = Vec::new();
 
-        while let Ok(stream_line) = receiver.recv() {
+        loop {
+            let stream_line = match receiver.recv_timeout(CANCELLATION_POLL_INTERVAL) {
+                Ok(stream_line) => stream_line,
+                Err(RecvTimeoutError::Timeout) if cancelled.load(Ordering::Acquire) => {
+                    let _ = child.kill();
+                    break;
+                }
+                Err(RecvTimeoutError::Timeout) => continue,
+                Err(RecvTimeoutError::Disconnected) => break,
+            };
             match stream_line {
                 StreamLine::StandardOutput(line) => {
                     if let Some(progress) = line.strip_prefix(PROGRESS_PREFIX) {
@@ -218,6 +304,11 @@ impl DownloaderRunner {
                     }
                 }
                 StreamLine::StandardError(line) => {
+                    push_bounded(
+                        &mut stderr_tail,
+                        line.trim().to_owned(),
+                        MAX_STDERR_TAIL_LINES,
+                    );
                     if let Some(failure) = parse_failure_line(&line) {
                         safe_failure = Some(failure);
                     }
@@ -246,7 +337,19 @@ impl DownloaderRunner {
                 destination: request.destination.clone(),
             }
         } else {
-            safe_failure.unwrap_or_else(default_failure)
+            match &safe_failure {
+                Some(failure) => failure.clone(),
+                None => classify_failure(&stderr_tail),
+            }
+        };
+        let diagnostic_log = match &terminal_event {
+            DownloaderEvent::Succeeded { .. } => None,
+            DownloaderEvent::Failed { message, .. } => Some(if safe_failure.is_some() {
+                message.clone()
+            } else {
+                refine_diagnostic(&stderr_tail)
+            }),
+            DownloaderEvent::Started { .. } | DownloaderEvent::Progress { .. } => None,
         };
         on_event(&terminal_event);
         events.push(terminal_event);
@@ -254,8 +357,58 @@ impl DownloaderRunner {
         Ok(DownloadRun {
             events,
             succeeded: status.success(),
+            diagnostic_log,
         })
     }
+}
+
+fn push_bounded(buffer: &mut Vec<String>, line: String, capacity: usize) {
+    if buffer.len() == capacity {
+        buffer.remove(0);
+    }
+    buffer.push(line);
+}
+
+fn classify_failure(stderr_tail: &[String]) -> DownloaderEvent {
+    let text = stderr_tail.join("\n").to_lowercase();
+    let kind = if text.contains("permission denied")
+        || text.contains("not writable")
+        || text.contains("permissionerror")
+    {
+        DownloadFailureKind::Permission
+    } else if text.contains("name or service not known")
+        || text.contains("network is unreachable")
+        || text.contains("connection reset")
+        || text.contains("connection timed out")
+        || text.contains("temporary failure in name resolution")
+        || text.contains("unable to download")
+    {
+        DownloadFailureKind::TransientNetwork
+    } else {
+        DownloadFailureKind::Unknown
+    };
+    let message = stderr_tail
+        .iter()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .cloned()
+        .unwrap_or_else(|| "Downloader exited without a safe diagnostic.".into());
+    DownloaderEvent::Failed { kind, message }
+}
+
+fn refine_diagnostic(stderr_tail: &[String]) -> String {
+    if stderr_tail.is_empty() {
+        return "Downloader exited without a safe diagnostic.".into();
+    }
+    let mut refined: String = stderr_tail
+        .join("\n")
+        .chars()
+        .take(MAX_DIAGNOSTIC_CHARS)
+        .collect();
+    while refined.ends_with('\n') {
+        refined.pop();
+    }
+    refined
 }
 
 fn stop_child<T>(
@@ -341,9 +494,12 @@ fn parse_optional_u64(value: Option<&str>, line: &str) -> Result<Option<u64>, Do
     match value {
         Some("NA" | "None" | "") => Ok(None),
         Some(value) => value
-            .parse()
+            .parse::<f64>()
+            .ok()
+            .filter(|value| value.is_finite() && *value >= 0.0 && *value <= u64::MAX as f64)
+            .map(|value| value as u64)
             .map(Some)
-            .map_err(|_| DownloaderError::InvalidProgress {
+            .ok_or_else(|| DownloaderError::InvalidProgress {
                 line: line.to_owned(),
             }),
         None => Err(DownloaderError::InvalidProgress {
@@ -366,11 +522,4 @@ fn parse_failure_line(line: &str) -> Option<DownloaderEvent> {
         kind,
         message: message.trim().to_owned(),
     })
-}
-
-fn default_failure() -> DownloaderEvent {
-    DownloaderEvent::Failed {
-        kind: DownloadFailureKind::Unknown,
-        message: "Downloader exited without a safe diagnostic.".into(),
-    }
 }

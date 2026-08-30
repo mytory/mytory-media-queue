@@ -9,6 +9,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0002_scheduler",
         include_str!("../migrations/0002_scheduler.sql"),
     ),
+    (
+        "0003_subtitles",
+        include_str!("../migrations/0003_subtitles.sql"),
+    ),
 ];
 
 pub fn migrate(connection: &mut Connection) -> Result<()> {
