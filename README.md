@@ -51,6 +51,22 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 테스트는 실제 yt-dlp나 외부 사이트를 호출하지 않습니다. `Downloader Simulator`가 독립 프로세스로 진행률, 성공, 일시 네트워크 실패, 권한 실패, 중단을 결정적으로 출력합니다.
 
+## 설치 파일 빌드 (GitHub Actions)
+
+설치 파일(Windows NSIS/MSI, macOS DMG, Linux deb/AppImage)은 **GitHub Actions**에서 빌드합니다. `mytory-yt-dlp`는 비공개 저장소이며, 릴리스 페이지에서 내려받을 수 있습니다.
+
+- 수동 빌드: Actions 탭 → **Build installers** → Run workflow
+- 버전 릴리스: 태그를 푸시하면 설치 파일이 자동으로 GitHub Release에 첨부됩니다
+
+  ```bash
+  git tag v0.1.0
+  git push origin v0.1.0
+  ```
+
+- 다운로드: `https://github.com/mytory/mytory-yt-dlp/releases`
+
+CI는 각 플랫폼용 yt-dlp/FFmpeg/FFprobe를 `scripts/fetch-tools.sh`로 내려받아 sidecar로 번들합니다. 로컬에서 직접 빌드할 때도 같은 스크립트를 먼저 실행해야 합니다 (`bash scripts/fetch-tools.sh <target-triple>`).
+
 ## 개인정보 및 보안 원칙
 
 - 원격 분석, 자동 오류 전송을 하지 않습니다.
