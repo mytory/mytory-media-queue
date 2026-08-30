@@ -16,6 +16,10 @@ _피할 것_: 자동 업데이트 런타임
 Downloader가 고화질 영상과 오디오를 병합하거나 변환할 수 있도록 애플리케이션 릴리스와 함께 제공하는 FFmpeg 및 FFprobe 실행 파일.
 _피할 것_: 선택 설치 코덱, 시스템 FFmpeg
 
+**Bundled Tool Manifest**:
+Downloader와 Bundled Media Toolchain의 고정 버전, 원본 배포처, SHA-256 및 라이선스 고지를 함께 관리하는 배포 규칙. 설치 파일에는 대상 플랫폼의 도구 라이선스 원문을 포함한다.
+_피할 것_: `latest` URL, 검증 없는 바이너리, 고지 없는 재배포
+
 **Bundled Extractor**:
 YouTube의 JavaScript 추출을 지원하는 내장 `yt-dlp-ejs` 구성 요소. Downloader와 호환되는 버전 쌍으로 Managed Update에서 함께 갱신되며, Bundled Runtime으로 실행된다.
 _피할 것_: Deno, 독립 업데이트 구성 요소

@@ -16,7 +16,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 - 기록: 대기·진행·실패와 최근 90일의 완료 이력을 로컬에 저장한다. 이력 삭제는 파일을 지우지 않는다.
 - 로그인: 브라우저 프로필 또는 `cookies.txt`를 고급 옵션으로 선택한다. 쿠키는 저장·표시·로그하지 않는다.
 - 오류: 네트워크 오류만 최대 3회 자동 재시도하며, 사용자는 재시도·취소·결과 폴더 열기·정제된 로그 복사를 할 수 있다.
-- 배포: 서명/공증 없는 플랫폼별 설치 파일을 비공개 배포한다. 앱 자체는 자동 갱신하지 않는다.
+- 배포: 공개 GitHub 저장소와 GitHub Release에서 서명/공증 없는 플랫폼별 설치 파일을 배포한다. 앱 자체는 자동 갱신하지 않는다.
 - 개인정보: 원격 분석(telemetry)과 자동 오류 전송은 없다.
 
 ## 설계
@@ -31,7 +31,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 
 ### 도구 배치와 실행
 
-1. Tauri의 플랫폼별 sidecar 번들로 Deno·FFmpeg·FFprobe·초기 yt-dlp를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 각 대상별 도구를 준비한다.
+1. Tauri의 플랫폼별 sidecar 번들로 Deno·FFmpeg·FFprobe·초기 yt-dlp를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 각 대상별 도구를 준비한다. Downloader와 Bundled Media Toolchain은 고정 버전·SHA-256으로 검증하며 `latest` URL을 사용하지 않는다.
 2. 최초 실행 시 관리 대상 도구를 앱 데이터 디렉터리에 초기화한다. 실행은 Rust가 절대 경로와 고정 인수 목록으로 수행하며 셸 문자열을 만들지 않는다.
 3. `yt-dlp-ejs`와 yt-dlp는 같은 버전 세트로 보관한다. Deno와 FFmpeg 계열은 앱 릴리스에서만 바뀐다.
 4. 업데이트는 하루 한 번 시작 시 확인하거나 수동 확인한다. 공식 안정 릴리스와 체크섬의 출처·호환 세트는 구현 전 스파이크로 검증한다.
@@ -62,6 +62,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 - 세 플랫폼 target triple용 도구 목록과 획득/해시 매니페스트 형식을 확정한다.
 - `DownloaderRunner` 공개 계약과 Downloader Simulator를 먼저 만든다.
 - yt-dlp/`yt-dlp-ejs` 공식 안정 배포물, 체크섬, 호환 세트의 재현 가능한 획득 절차를 검증한다. 이 검증이 끝나기 전에는 자동 업데이트를 구현하지 않는다.
+- 최초 번들인 Downloader 및 Bundled Media Toolchain의 고정 버전·SHA-256·대상별 라이선스 원문을 `scripts/fetch-tools.sh`와 `THIRD_PARTY_NOTICES.md`로 관리한다.
 
 ### 1. 대기열 수직 슬라이스
 
@@ -92,7 +93,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 - Windows 설치 파일, macOS Universal DMG, Linux AppImage을 대상 OS에서 빌드한다.
 - sidecar 권한을 최소화하고 앱이 허용 목록의 도구만 실행하도록 설정한다.
 - 설치/제거, 최초 실행, OS 다운로드 폴더, 업데이트 실패, Gatekeeper/SmartScreen 안내를 각 플랫폼에서 수동 점검한다.
-- 비공개 배포용 설치 안내와 도구별 라이선스/고지 파일을 포함한다. 비공개 배포도 재배포 조건을 면제하지 않는다.
+- 공개 배포용 설치 안내와 도구별 라이선스/고지 파일을 포함한다. 설치 파일에는 앱의 GPL-3.0-or-later 전문과 대상 플랫폼의 도구 라이선스 원문을 포함한다.
 
 ## 완료 조건
 
@@ -101,6 +102,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 - Downloader Simulator 실패 시나리오에서 쿠키나 원시 인증 정보가 저장/로그되지 않는다.
 - Managed Update 실패가 실행 가능한 기존 yt-dlp/`yt-dlp-ejs` 세트를 손상시키지 않는다.
 - 배포 문서가 무서명 앱의 OS별 최초 실행 절차와 앱 업데이트가 수동임을 명시한다.
+- 공개 저장소·설치 파일·GitHub Release의 라이선스, 제3자 고지 및 번들 도구 버전이 서로 일치한다.
 
 ## 알려진 위험 및 후속 작업
 
