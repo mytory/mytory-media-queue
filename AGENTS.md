@@ -52,9 +52,20 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 변경 범위에 맞는 검사만 최소한으로 선택하되, Rust 변경에는 `cargo fmt --check`와 관련 테스트를 포함합니다.
 
-## 배포
+## 출시
 
 - 설치 파일은 GitHub Actions에서 빌드합니다.
 - 로컬 패키지 빌드 전에는 필요하면 `bash scripts/fetch-tools.sh <target-triple>`로 sidecar를 준비합니다.
-- 버전을 변경하거나 릴리스를 준비할 때는 semver 기준과 변경 이유를 먼저 보고하고 승인받습니다.
+- 출시 준비는 다음 절차를 따릅니다.
+  1. 현재 `package.json` 버전을 확인하고 변경 사항을 검토합니다.
+  2. semver에 따라 다음 버전을 결정합니다.
+     - patch: 버그 수정
+     - minor: 기능 추가
+     - major: 호환성을 깨는 변경
+  3. 결정한 버전과 이유를 사용자에게 보고하고 승인을 받습니다.
+  4. 승인 후 `package.json` 버전을 업데이트합니다.
+  5. `README.md`를 해당 릴리스 내용에 맞게 업데이트합니다.
+  6. 변경 사항을 커밋합니다.
+  7. 사용자가 승인하면 `git tag -a vX.Y.Z -m "Release vX.Y.Z"`로 주석 태그를 생성합니다.
+  8. 직접 푸시하지 않고, 사용자에게 `git push origin <branch> --tags` 등 필요한 브랜치·태그 푸시 명령을 안내합니다.
 - 릴리스 태그·푸시는 사용자가 명시적으로 승인한 경우에만 실행합니다.
