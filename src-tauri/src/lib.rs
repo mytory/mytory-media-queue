@@ -134,7 +134,25 @@ fn set_download_concurrency(concurrency: u8, state: State<'_, AppState>) -> Resu
     Ok(changed)
 }
 
+fn sidecar_candidates(name: &str) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join(name));
+            candidates.push(dir.join(format!("{name}.exe")));
+        }
+    }
+    candidates.push(PathBuf::from(name));
+    candidates
+}
+
 fn resolve_sidecar(app: &tauri::App, name: &str) -> Option<PathBuf> {
+    for candidate in sidecar_candidates(name) {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    // Bundled Linux resources fall back to the resource directory.
     for candidate in [format!("binaries/{name}"), format!("binaries/{name}.exe")] {
         if let Ok(path) = app
             .path()
@@ -149,6 +167,11 @@ fn resolve_sidecar(app: &tauri::App, name: &str) -> Option<PathBuf> {
 }
 
 fn resolve_ffmpeg_dir(app: &tauri::App) -> Option<PathBuf> {
+    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf)) {
+        if dir.join("ffmpeg").is_file() || dir.join("ffmpeg.exe").is_file() {
+            return Some(dir);
+        }
+    }
     let dir = app
         .path()
         .resolve("binaries", tauri::path::BaseDirectory::Resource)

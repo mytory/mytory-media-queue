@@ -27,7 +27,14 @@ uuid = { version = "1", features = ["v4"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 
+[features]
+default = []
+# Gates the test-only Downloader Simulator binary so release builds and
+# the Tauri bundler skip it entirely.
+simulator = []
+
 [[bin]]
 name = "downloader-simulator"
 path = "src/bin/downloader_simulator.rs"
+required-features = ["simulator"]
 

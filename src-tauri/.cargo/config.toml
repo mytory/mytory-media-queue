@@ -1,0 +1,4 @@
+[alias]
+# Tests need the Downloader Simulator binary, which is feature-gated so
+# release builds and the Tauri bundler do not include it.
+test = "test --features simulator"
