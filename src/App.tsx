@@ -228,7 +228,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><div><p className="eyebrow">MYTORY / DOWNLOAD DESK</p><h1>유튜브, SNS 영상 다운로더</h1></div></div>
+        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><div><p className="eyebrow">Mytory yt-dlp</p><h1>유튜브, SNS 영상 다운로더</h1></div></div>
         <div className="queue-meter" aria-label={`진행 ${activeCount}개, 대기 ${queuedCount}개`}><span className="meter-dot" /><span>진행 {activeCount}</span><span className="meter-divider">/</span><span>대기 {queuedCount}</span></div>
       </header>
 
