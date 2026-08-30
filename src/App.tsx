@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { FormEvent, useEffect, useState } from "react";
 import "./App.css";
 
@@ -57,6 +58,15 @@ function App() {
     }
   }
 
+  async function chooseDestination() {
+    try {
+      const selected = await open({ directory: true, multiple: false, defaultPath: destination });
+      if (typeof selected === "string") setDestination(selected);
+    } catch (reason) {
+      setError(String(reason));
+    }
+  }
+
   async function updateConcurrency(value: number) {
     setConcurrency(value);
     try {
@@ -73,7 +83,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand-lockup"><span className="brand-mark">↓</span><div><p className="eyebrow">MYTORY / DOWNLOAD DESK</p><h1>미디어 받기, 정리해서.</h1></div></div>
+        <div className="brand-lockup"><span className="brand-mark">↓</span><div><p className="eyebrow">MYTORY / DOWNLOAD DESK</p><h1>유튜브, SNS 영상 다운로더</h1></div></div>
         <div className="queue-meter" aria-label={`진행 ${activeCount}개, 대기 ${queuedCount}개`}><span className="meter-dot" /><span>진행 {activeCount}</span><span className="meter-divider">/</span><span>대기 {queuedCount}</span></div>
       </header>
 
@@ -82,7 +92,7 @@ function App() {
           <div className="form-heading"><span>새 작업</span><p>주소를 한 줄에 하나씩 붙여 넣으세요.</p></div>
           <label className="url-field"><span>미디어 URL</span><textarea value={urls} onChange={(event) => setUrls(event.target.value)} placeholder={"https://…\nhttps://…"} required /></label>
           <div className="form-options">
-            <label><span>저장 위치</span><input value={destination} onChange={(event) => setDestination(event.target.value)} required /></label>
+            <label><span>저장 위치</span><div className="destination-picker"><input value={destination} readOnly required /><button type="button" onClick={() => void chooseDestination()}>폴더 선택</button></div></label>
             <label className="concurrency"><span>동시 작업</span><select value={concurrency} onChange={(event) => void updateConcurrency(Number(event.target.value))}>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}개</option>)}</select></label>
           </div>
           <div className="form-footer"><p>기본 형식: MP4 호환 · 썸네일 저장</p><button type="submit" disabled={submitting}>{submitting ? "대기열에 넣는 중" : "대기열에 추가"}<span>→</span></button></div>
