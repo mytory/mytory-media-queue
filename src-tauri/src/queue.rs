@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Mutex};
 
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -17,15 +17,21 @@ pub enum OutputPreset {
 pub enum DownloadStatus {
     Queued,
     Running,
+    Completed,
+    Failed,
+    Cancelled,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct QueueJob {
     pub id: String,
     pub source_url: String,
     pub destination: String,
     pub output_preset: OutputPreset,
     pub status: DownloadStatus,
+    pub progress_percent: Option<f64>,
+    pub speed_bytes_per_second: Option<u64>,
+    pub eta_seconds: Option<u64>,
 }
 
 pub struct DownloadQueue {
@@ -70,21 +76,105 @@ impl DownloadQueue {
                 destination: destination.clone(),
                 output_preset: OutputPreset::Mp4Compatible,
                 status: DownloadStatus::Queued,
+                progress_percent: None,
+                speed_bytes_per_second: None,
+                eta_seconds: None,
             });
         }
         transaction.commit()?;
         Ok(jobs)
     }
 
+    pub fn concurrency(&self) -> Result<u8> {
+        let connection = self.connection.lock().expect("queue lock poisoned");
+        let value = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'download_concurrency'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(value
+            .and_then(|value| value.parse().ok())
+            .filter(|value| (1..=5).contains(value))
+            .unwrap_or(3))
+    }
+
+    pub fn set_concurrency(&self, concurrency: u8) -> Result<bool> {
+        if !(1..=5).contains(&concurrency) {
+            return Ok(false);
+        }
+        self.connection.lock().expect("queue lock poisoned").execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES ('download_concurrency', ?1, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            [concurrency.to_string()],
+        )?;
+        Ok(true)
+    }
+
+    pub fn start_available(&self) -> Result<Vec<QueueJob>> {
+        let concurrency = self.concurrency()? as usize;
+        let connection = self.connection.lock().expect("queue lock poisoned");
+        let running: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM download_jobs WHERE status = 'running'",
+            [],
+            |row| row.get(0),
+        )?;
+        let slots = (concurrency as i64 - running).max(0);
+        if slots == 0 {
+            return Ok(Vec::new());
+        }
+        let mut statement = connection.prepare("SELECT id, source_url, destination FROM download_jobs WHERE status = 'queued' ORDER BY created_at, rowid LIMIT ?1")?;
+        let queued = statement
+            .query_map([slots], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>>>()?;
+        let transaction = connection.unchecked_transaction()?;
+        let mut jobs = Vec::with_capacity(queued.len());
+        for (id, source_url, destination) in queued {
+            transaction.execute("UPDATE download_jobs SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'queued'", [&id])?;
+            jobs.push(QueueJob {
+                id,
+                source_url,
+                destination,
+                output_preset: OutputPreset::Mp4Compatible,
+                status: DownloadStatus::Running,
+                progress_percent: None,
+                speed_bytes_per_second: None,
+                eta_seconds: None,
+            });
+        }
+        transaction.commit()?;
+        Ok(jobs)
+    }
+
+    pub fn cancel(&self, id: &str) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute("UPDATE download_jobs SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status IN ('queued', 'running')", [id])?;
+        Ok(())
+    }
+
+    pub fn retry(&self, id: &str) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute("UPDATE download_jobs SET status = 'queued', attempt_count = attempt_count + 1, failure_kind = NULL, diagnostic_log = NULL, cancelled_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status IN ('failed', 'cancelled')", [id])?;
+        Ok(())
+    }
+
+    pub fn prune_completed_history(&self) -> Result<usize> {
+        self.connection.lock().expect("queue lock poisoned").execute("DELETE FROM download_jobs WHERE status = 'completed' AND completed_at < datetime('now', '-90 days')", [])
+    }
+
     pub fn mark_running(&self, id: &str) -> Result<()> {
         self.connection.lock().expect("queue lock poisoned").execute(
-            "UPDATE download_jobs SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?1", [id])?;
+            "UPDATE download_jobs SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND status = 'queued'", [id])?;
         Ok(())
     }
 
     pub fn jobs(&self) -> Result<Vec<QueueJob>> {
         let connection = self.connection.lock().expect("queue lock poisoned");
-        let mut statement = connection.prepare("SELECT id, source_url, destination, output_preset, status FROM download_jobs ORDER BY created_at, rowid")?;
+        let mut statement = connection.prepare("SELECT id, source_url, destination, output_preset, status, progress_percent, speed_bytes_per_second, eta_seconds FROM download_jobs ORDER BY created_at, rowid")?;
         let jobs = statement
             .query_map([], |row| {
                 Ok(QueueJob {
@@ -94,8 +184,14 @@ impl DownloadQueue {
                     output_preset: OutputPreset::Mp4Compatible,
                     status: match row.get::<_, String>(4)?.as_str() {
                         "running" => DownloadStatus::Running,
+                        "completed" => DownloadStatus::Completed,
+                        "failed" => DownloadStatus::Failed,
+                        "cancelled" => DownloadStatus::Cancelled,
                         _ => DownloadStatus::Queued,
                     },
+                    progress_percent: row.get(5)?,
+                    speed_bytes_per_second: row.get::<_, Option<i64>>(6)?.map(|value| value as u64),
+                    eta_seconds: row.get::<_, Option<i64>>(7)?.map(|value| value as u64),
                 })
             })?
             .collect();

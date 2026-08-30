@@ -1,9 +1,15 @@
 use rusqlite::{Connection, Result};
 
-const MIGRATIONS: &[(&str, &str)] = &[(
-    "0001_initial",
-    include_str!("../migrations/0001_initial.sql"),
-)];
+const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "0001_initial",
+        include_str!("../migrations/0001_initial.sql"),
+    ),
+    (
+        "0002_scheduler",
+        include_str!("../migrations/0002_scheduler.sql"),
+    ),
+];
 
 pub fn migrate(connection: &mut Connection) -> Result<()> {
     connection.execute_batch(
