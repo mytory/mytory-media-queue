@@ -34,17 +34,27 @@ case "$TARGET" in
 esac
 
 echo "fetching yt-dlp for $TARGET"
-curl -fL --retry 3 -o "$OUT/yt-dlp-$TARGET$EXT" "$YTDLP_URL"
+if [ "$TARGET" = "universal-apple-darwin" ]; then
+  curl -fL --retry 3 -o /tmp/yt-dlp-macos "$YTDLP_URL"
+else
+  curl -fL --retry 3 -o "$OUT/yt-dlp-$TARGET$EXT" "$YTDLP_URL"
+fi
 
 if [ "$TARGET" = "universal-apple-darwin" ]; then
-  echo "merging universal ffmpeg/ffprobe with lipo"
-  curl -fL --retry 3 -o /tmp/ffmpeg-x64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffmpeg-darwin-x64"
-  curl -fL --retry 3 -o /tmp/ffmpeg-arm64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffmpeg-darwin-arm64"
-  curl -fL --retry 3 -o /tmp/ffprobe-x64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffprobe-darwin-x64"
-  curl -fL --retry 3 -o /tmp/ffprobe-arm64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffprobe-darwin-arm64"
-  lipo -create /tmp/ffmpeg-x64 /tmp/ffmpeg-arm64 -output "$OUT/ffmpeg-$TARGET"
-  lipo -create /tmp/ffprobe-x64 /tmp/ffprobe-arm64 -output "$OUT/ffprobe-$TARGET"
-  chmod +x "$OUT/ffmpeg-$TARGET" "$OUT/ffprobe-$TARGET"
+  echo "preparing per-arch and universal sidecars for macOS"
+  # yt-dlp_macos is already a universal binary; publish it under every
+  # name tauri looks up (per-arch cargo builds and the universal bundle).
+  for name in aarch64-apple-darwin x86_64-apple-darwin universal-apple-darwin; do
+    cp /tmp/yt-dlp-macos "$OUT/yt-dlp-$name"
+  done
+  for tool in ffmpeg ffprobe; do
+    curl -fL --retry 3 -o /tmp/$tool-x64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/$tool-darwin-x64"
+    curl -fL --retry 3 -o /tmp/$tool-arm64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/$tool-darwin-arm64"
+    cp /tmp/$tool-arm64 "$OUT/$tool-aarch64-apple-darwin"
+    cp /tmp/$tool-x64 "$OUT/$tool-x86_64-apple-darwin"
+    lipo -create /tmp/$tool-x64 /tmp/$tool-arm64 -output "$OUT/$tool-universal-apple-darwin"
+  done
+  chmod +x "$OUT"/yt-dlp-* "$OUT"/ffmpeg-* "$OUT"/ffprobe-*
 else
   echo "fetching ffmpeg/ffprobe for $TARGET"
   case "$TARGET" in

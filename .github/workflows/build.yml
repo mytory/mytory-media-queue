@@ -58,6 +58,7 @@ jobs:
           cache: npm
 
       - name: Fetch bundled media toolchain
+        shell: bash
         run: |
           case "${{ matrix.platform }}" in
             macos-*) bash scripts/fetch-tools.sh universal-apple-darwin ;;
