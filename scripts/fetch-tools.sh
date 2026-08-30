@@ -3,7 +3,8 @@
 # src-tauri/binaries/ with Tauri sidecar naming for the given target triple.
 #
 # Usage: scripts/fetch-tools.sh <target-triple>
-#   aarch64-apple-darwin | x86_64-apple-darwin | x86_64-pc-windows-msvc | x86_64-unknown-linux-gnu
+#   universal-apple-darwin | aarch64-apple-darwin | x86_64-apple-darwin \
+#   | x86_64-pc-windows-msvc | x86_64-unknown-linux-gnu
 set -euo pipefail
 
 TARGET="${1:?usage: scripts/fetch-tools.sh <target-triple>}"
@@ -12,29 +13,14 @@ FFMPEG_RELEASE="eugeneware/ffmpeg-static"
 mkdir -p "$OUT"
 
 case "$TARGET" in
-  aarch64-apple-darwin)
+  universal-apple-darwin | aarch64-apple-darwin | x86_64-apple-darwin)
     YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
-    FFMPEG_ASSET="ffmpeg-darwin-arm64"
-    FFPROBE_ASSET="ffprobe-darwin-arm64"
-    EXT=""
-    ;;
-  x86_64-apple-darwin)
-    YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
-    FFMPEG_ASSET="ffmpeg-darwin-x64"
-    FFPROBE_ASSET="ffprobe-darwin-x64"
-    EXT=""
     ;;
   x86_64-pc-windows-msvc)
     YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-    FFMPEG_ASSET="ffmpeg-win32-x64"
-    FFPROBE_ASSET="ffprobe-win32-x64"
-    EXT=".exe"
     ;;
   x86_64-unknown-linux-gnu)
     YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
-    FFMPEG_ASSET="ffmpeg-linux-x64"
-    FFPROBE_ASSET="ffprobe-linux-x64"
-    EXT=""
     ;;
   *)
     echo "unsupported target: $TARGET" >&2
@@ -42,17 +28,38 @@ case "$TARGET" in
     ;;
 esac
 
+EXT=""
+case "$TARGET" in
+  x86_64-pc-windows-msvc) EXT=".exe" ;;
+esac
+
 echo "fetching yt-dlp for $TARGET"
 curl -fL --retry 3 -o "$OUT/yt-dlp-$TARGET$EXT" "$YTDLP_URL"
 
-echo "fetching ffmpeg/ffprobe for $TARGET"
-curl -fL --retry 3 -o "$OUT/ffmpeg-$TARGET$EXT" \
-  "https://github.com/$FFMPEG_RELEASE/releases/latest/download/$FFMPEG_ASSET"
-curl -fL --retry 3 -o "$OUT/ffprobe-$TARGET$EXT" \
-  "https://github.com/$FFMPEG_RELEASE/releases/latest/download/$FFPROBE_ASSET"
-
-if [ -z "$EXT" ]; then
-  chmod +x "$OUT/yt-dlp-$TARGET" "$OUT/ffmpeg-$TARGET" "$OUT/ffprobe-$TARGET"
+if [ "$TARGET" = "universal-apple-darwin" ]; then
+  echo "merging universal ffmpeg/ffprobe with lipo"
+  curl -fL --retry 3 -o /tmp/ffmpeg-x64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffmpeg-darwin-x64"
+  curl -fL --retry 3 -o /tmp/ffmpeg-arm64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffmpeg-darwin-arm64"
+  curl -fL --retry 3 -o /tmp/ffprobe-x64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffprobe-darwin-x64"
+  curl -fL --retry 3 -o /tmp/ffprobe-arm64 "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffprobe-darwin-arm64"
+  lipo -create /tmp/ffmpeg-x64 /tmp/ffmpeg-arm64 -output "$OUT/ffmpeg-$TARGET"
+  lipo -create /tmp/ffprobe-x64 /tmp/ffprobe-arm64 -output "$OUT/ffprobe-$TARGET"
+  chmod +x "$OUT/ffmpeg-$TARGET" "$OUT/ffprobe-$TARGET"
+else
+  echo "fetching ffmpeg/ffprobe for $TARGET"
+  case "$TARGET" in
+    aarch64-apple-darwin) FF="darwin-arm64" ;;
+    x86_64-apple-darwin) FF="darwin-x64" ;;
+    x86_64-pc-windows-msvc) FF="win32-x64" ;;
+    x86_64-unknown-linux-gnu) FF="linux-x64" ;;
+  esac
+  curl -fL --retry 3 -o "$OUT/ffmpeg-$TARGET$EXT" \
+    "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffmpeg-$FF"
+  curl -fL --retry 3 -o "$OUT/ffprobe-$TARGET$EXT" \
+    "https://github.com/$FFMPEG_RELEASE/releases/latest/download/ffprobe-$FF"
+  if [ -z "$EXT" ]; then
+    chmod +x "$OUT/yt-dlp-$TARGET" "$OUT/ffmpeg-$TARGET" "$OUT/ffprobe-$TARGET"
+  fi
 fi
 
 ls -la "$OUT"

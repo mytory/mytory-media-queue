@@ -15,19 +15,18 @@ jobs:
       matrix:
         include:
           - platform: macos-14
-            target: x86_64-apple-darwin
-            artifact: macos-intel
-            bundles: dmg
-          - platform: macos-14-arm64
-            target: aarch64-apple-darwin
-            artifact: macos-apple-silicon
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
+            tauri_args: --target universal-apple-darwin
+            artifact: macos-universal
             bundles: dmg
           - platform: windows-latest
-            target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+            tauri_args: ""
             artifact: windows-x86_64
             bundles: nsis,msi
           - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
+            tauri_args: ""
             artifact: linux-x86_64
             bundles: deb,appimage
     runs-on: ${{ matrix.platform }}
@@ -47,7 +46,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust_targets }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -59,13 +58,17 @@ jobs:
           cache: npm
 
       - name: Fetch bundled media toolchain
-        run: bash scripts/fetch-tools.sh "${{ matrix.target }}"
+        run: |
+          case "${{ matrix.platform }}" in
+            macos-*) bash scripts/fetch-tools.sh universal-apple-darwin ;;
+            *) bash scripts/fetch-tools.sh "${{ matrix.rust_targets }}" ;;
+          esac
 
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build installer
-        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }} ${{ matrix.tauri_args }}
 
       - uses: actions/upload-artifact@v4
         with:

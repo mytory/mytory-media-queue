@@ -2,7 +2,7 @@
 
 개인 및 지인에게 비공개 배포하는, [yt-dlp](https://github.com/yt-dlp/yt-dlp) 기반의 로컬 우선 데스크톱 미디어 다운로드 도구입니다.
 
-> **개발 중**: Download Queue 영속화·재개·스케줄링, 실제 다운로드 실행, 출력 옵션(썸네일·자막), 쿠키 파일, 실패 복구(3회 재시도·진단 로그), 이력 정리를 구현했습니다. yt-dlp/FFmpeg/Deno 번들, Managed Update, 설치 패키지는 아직 완성되지 않았습니다.
+> **개발 중**: Download Queue 영속화·재개·스케줄링, 실제 다운로드 실행, 출력 옵션(썸네일·자막), 쿠키 파일, 실패 복구(3회 재시도·진단 로그), 이력 정리, yt-dlp/FFmpeg/FFprobe sidecar 번들, GitHub Actions 기반 설치 패키지 빌드를 구현했습니다. Deno/`yt-dlp-ejs` 번들(YouTube 자바스크립트 추출기)과 Managed Update는 아직 완성되지 않았습니다.
 
 ## 목표
 
