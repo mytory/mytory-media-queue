@@ -1,0 +1,346 @@
+use std::{
+    error::Error,
+    fmt,
+    io::{self, BufRead, BufReader},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    sync::mpsc::{self, SyncSender},
+    thread,
+};
+
+const PROGRESS_PREFIX: &str = "MYTORY_PROGRESS:";
+const FAILURE_PREFIX: &str = "MYTORY_FAILURE:";
+const PROGRESS_TEMPLATE: &str = "download:MYTORY_PROGRESS:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress.total_bytes_estimate)s:%(progress.speed)s:%(progress.eta)s";
+const OUTPUT_CHANNEL_CAPACITY: usize = 16;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DownloaderRequest {
+    pub url: String,
+    pub destination: PathBuf,
+}
+
+impl DownloaderRequest {
+    pub fn new(url: impl Into<String>, destination: impl AsRef<Path>) -> Self {
+        Self {
+            url: url.into(),
+            destination: destination.as_ref().to_path_buf(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DownloaderEvent {
+    Started {
+        url: String,
+    },
+    Progress {
+        downloaded_bytes: u64,
+        total_bytes: Option<u64>,
+        percent: Option<f32>,
+        speed_bytes_per_second: Option<u64>,
+        eta_seconds: Option<u64>,
+    },
+    Succeeded {
+        destination: PathBuf,
+    },
+    Failed {
+        kind: DownloadFailureKind,
+        message: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DownloadFailureKind {
+    TransientNetwork,
+    Permission,
+    Interrupted,
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DownloadRun {
+    pub events: Vec<DownloaderEvent>,
+    pub succeeded: bool,
+}
+
+#[derive(Debug)]
+pub enum DownloaderError {
+    Spawn {
+        executable: PathBuf,
+        source: io::Error,
+    },
+    ReadOutput {
+        executable: PathBuf,
+        source: io::Error,
+    },
+    Wait {
+        executable: PathBuf,
+        source: io::Error,
+    },
+    InvalidProgress {
+        line: String,
+    },
+}
+
+impl fmt::Display for DownloaderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Spawn { executable, source } => {
+                write!(
+                    f,
+                    "could not start downloader at {}: {source}",
+                    executable.display()
+                )
+            }
+            Self::ReadOutput { executable, source } => {
+                write!(
+                    f,
+                    "could not read downloader output at {}: {source}",
+                    executable.display()
+                )
+            }
+            Self::Wait { executable, source } => {
+                write!(
+                    f,
+                    "could not wait for downloader at {}: {source}",
+                    executable.display()
+                )
+            }
+            Self::InvalidProgress { line } => write!(f, "invalid downloader progress: {line}"),
+        }
+    }
+}
+
+impl Error for DownloaderError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Spawn { source, .. }
+            | Self::ReadOutput { source, .. }
+            | Self::Wait { source, .. } => Some(source),
+            Self::InvalidProgress { .. } => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct DownloaderRunner {
+    executable: PathBuf,
+}
+
+impl DownloaderRunner {
+    pub fn new(executable: impl Into<PathBuf>) -> Self {
+        Self {
+            executable: executable.into(),
+        }
+    }
+
+    pub fn run(&self, request: &DownloaderRequest) -> Result<DownloadRun, DownloaderError> {
+        self.run_with_events(request, |_| {})
+    }
+
+    pub fn run_with_events<F>(
+        &self,
+        request: &DownloaderRequest,
+        mut on_event: F,
+    ) -> Result<DownloadRun, DownloaderError>
+    where
+        F: FnMut(&DownloaderEvent),
+    {
+        let output_template = request.destination.join("%(title)s.%(ext)s");
+        let mut child = Command::new(&self.executable)
+            .args(["--newline", "--progress-template", PROGRESS_TEMPLATE, "-o"])
+            .arg(output_template)
+            .arg("--")
+            .arg(&request.url)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|source| DownloaderError::Spawn {
+                executable: self.executable.clone(),
+                source,
+            })?;
+
+        let stdout = child.stdout.take().expect("stdout is piped");
+        let stderr = child.stderr.take().expect("stderr is piped");
+        let (sender, receiver) = mpsc::sync_channel(OUTPUT_CHANNEL_CAPACITY);
+        let stdout_reader = spawn_reader(stdout, sender.clone(), StreamKind::StandardOutput);
+        let stderr_reader = spawn_reader(stderr, sender.clone(), StreamKind::StandardError);
+        drop(sender);
+
+        let mut events = Vec::new();
+        let started = DownloaderEvent::Started {
+            url: request.url.clone(),
+        };
+        on_event(&started);
+        events.push(started);
+        let mut safe_failure = None;
+
+        while let Ok(stream_line) = receiver.recv() {
+            match stream_line {
+                StreamLine::StandardOutput(line) => {
+                    if let Some(progress) = line.strip_prefix(PROGRESS_PREFIX) {
+                        let event = match parse_progress(progress, &line) {
+                            Ok(event) => event,
+                            Err(error) => return stop_child(child, error),
+                        };
+                        on_event(&event);
+                        events.push(event);
+                    }
+                }
+                StreamLine::StandardError(line) => {
+                    if let Some(failure) = parse_failure_line(&line) {
+                        safe_failure = Some(failure);
+                    }
+                }
+                StreamLine::ReadError(source) => {
+                    return stop_child(
+                        child,
+                        DownloaderError::ReadOutput {
+                            executable: self.executable.clone(),
+                            source,
+                        },
+                    );
+                }
+            }
+        }
+
+        let status = child.wait().map_err(|source| DownloaderError::Wait {
+            executable: self.executable.clone(),
+            source,
+        })?;
+        let _ = stdout_reader.join();
+        let _ = stderr_reader.join();
+
+        let terminal_event = if status.success() {
+            DownloaderEvent::Succeeded {
+                destination: request.destination.clone(),
+            }
+        } else {
+            safe_failure.unwrap_or_else(default_failure)
+        };
+        on_event(&terminal_event);
+        events.push(terminal_event);
+
+        Ok(DownloadRun {
+            events,
+            succeeded: status.success(),
+        })
+    }
+}
+
+fn stop_child<T>(
+    mut child: std::process::Child,
+    error: DownloaderError,
+) -> Result<T, DownloaderError> {
+    let _ = child.kill();
+    let _ = child.wait();
+    Err(error)
+}
+
+#[derive(Clone, Copy)]
+enum StreamKind {
+    StandardOutput,
+    StandardError,
+}
+
+enum StreamLine {
+    StandardOutput(String),
+    StandardError(String),
+    ReadError(io::Error),
+}
+
+fn spawn_reader<R>(
+    reader: R,
+    sender: SyncSender<StreamLine>,
+    kind: StreamKind,
+) -> thread::JoinHandle<()>
+where
+    R: io::Read + Send + 'static,
+{
+    thread::spawn(move || {
+        for line in BufReader::new(reader).lines() {
+            let stream_line = match line {
+                Ok(line) => match kind {
+                    StreamKind::StandardOutput => StreamLine::StandardOutput(line),
+                    StreamKind::StandardError => StreamLine::StandardError(line),
+                },
+                Err(error) => StreamLine::ReadError(error),
+            };
+
+            if sender.send(stream_line).is_err() {
+                break;
+            }
+        }
+    })
+}
+
+fn parse_progress(progress: &str, line: &str) -> Result<DownloaderEvent, DownloaderError> {
+    let mut values = progress.split(':');
+    let downloaded_bytes = parse_required_u64(values.next(), line)?;
+    let total_bytes =
+        parse_optional_u64(values.next(), line)?.or(parse_optional_u64(values.next(), line)?);
+    let speed_bytes_per_second = parse_optional_u64(values.next(), line)?;
+    let eta_seconds = parse_optional_u64(values.next(), line)?;
+
+    if values.next().is_some() {
+        return Err(DownloaderError::InvalidProgress {
+            line: line.to_owned(),
+        });
+    }
+
+    let percent = total_bytes
+        .filter(|total_bytes| *total_bytes > 0)
+        .map(|total_bytes| downloaded_bytes as f32 * 100.0 / total_bytes as f32);
+
+    Ok(DownloaderEvent::Progress {
+        downloaded_bytes,
+        total_bytes,
+        percent,
+        speed_bytes_per_second,
+        eta_seconds,
+    })
+}
+
+fn parse_required_u64(value: Option<&str>, line: &str) -> Result<u64, DownloaderError> {
+    parse_optional_u64(value, line)?.ok_or_else(|| DownloaderError::InvalidProgress {
+        line: line.to_owned(),
+    })
+}
+
+fn parse_optional_u64(value: Option<&str>, line: &str) -> Result<Option<u64>, DownloaderError> {
+    match value {
+        Some("NA" | "None" | "") => Ok(None),
+        Some(value) => value
+            .parse()
+            .map(Some)
+            .map_err(|_| DownloaderError::InvalidProgress {
+                line: line.to_owned(),
+            }),
+        None => Err(DownloaderError::InvalidProgress {
+            line: line.to_owned(),
+        }),
+    }
+}
+
+fn parse_failure_line(line: &str) -> Option<DownloaderEvent> {
+    let failure = line.strip_prefix(FAILURE_PREFIX)?;
+    let (kind, message) = failure.split_once(':').unwrap_or(("unknown", failure));
+    let kind = match kind {
+        "transient_network" => DownloadFailureKind::TransientNetwork,
+        "permission" => DownloadFailureKind::Permission,
+        "interrupted" => DownloadFailureKind::Interrupted,
+        _ => DownloadFailureKind::Unknown,
+    };
+
+    Some(DownloaderEvent::Failed {
+        kind,
+        message: message.trim().to_owned(),
+    })
+}
+
+fn default_failure() -> DownloaderEvent {
+    DownloaderEvent::Failed {
+        kind: DownloadFailureKind::Unknown,
+        message: "Downloader exited without a safe diagnostic.".into(),
+    }
+}
