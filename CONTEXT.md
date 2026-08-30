@@ -1,6 +1,6 @@
 # Mytory YT-DLP
 
-개인 및 지인에게 배포하는, yt-dlp 기반의 데스크톱 미디어 다운로드 도구이다.
+공개 소스 저장소에서 개발하는, yt-dlp 기반의 데스크톱 미디어 다운로드 도구이다.
 
 ## 언어
 
@@ -28,8 +28,8 @@ _피할 것_: nightly 업데이트, 전체 앱 업데이트, 강제 업데이트
 초기 릴리스를 제공하는 Windows x64, macOS Universal(Apple Silicon 및 Intel), Linux x64 환경.
 _피할 것_: 모든 데스크톱 환경, ARM 지원
 
-**Internal Distribution**:
-서명·공증 없이 비공개로 배포하는 플랫폼별 설치 파일. 설치 안내는 Windows SmartScreen과 macOS Gatekeeper의 최초 실행 절차를 포함하며, Application Release는 자동 교체하지 않는다.
+**Unsigned Distribution**:
+서명·공증 없이 배포하는 플랫폼별 설치 파일. 설치 안내는 Windows SmartScreen과 macOS Gatekeeper의 최초 실행 절차를 포함하며, Application Release는 자동 교체하지 않는다.
 _피할 것_: 공개 앱 스토어 배포, 서명된 릴리스
 
 **Download Queue**:

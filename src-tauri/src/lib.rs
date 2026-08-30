@@ -167,7 +167,10 @@ fn resolve_sidecar(app: &tauri::App, name: &str) -> Option<PathBuf> {
 }
 
 fn resolve_ffmpeg_dir(app: &tauri::App) -> Option<PathBuf> {
-    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf)) {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+    {
         if dir.join("ffmpeg").is_file() || dir.join("ffmpeg.exe").is_file() {
             return Some(dir);
         }

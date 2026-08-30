@@ -2,6 +2,7 @@
 name = "mytory-yt-dlp"
 version = "0.1.0"
 description = "A local-first desktop download queue powered by yt-dlp"
+license = "GPL-3.0-or-later"
 authors = ["Mytory"]
 edition = "2021"
 default-run = "mytory-yt-dlp"
