@@ -22,6 +22,7 @@ YTDLP_WHEEL_URL="https://files.pythonhosted.org/packages/69/b2/8cd1613f56eed7ceb
 EJS_WHEEL_URL="https://github.com/yt-dlp/ejs/releases/download/0.8.0/yt_dlp_ejs-0.8.0-py3-none-any.whl"
 FFMPEG_VERSION="7.1.1"
 FFMPEG_SOURCE_ARCHIVE="$OUT/ffmpeg-source/ffmpeg-$FFMPEG_VERSION.tar.xz"
+PYTHON_TARGETS=()
 
 mkdir -p "$OUT" "$LICENSE_OUT" "$WHEEL_OUT" "$PYTHON_OUT"
 
@@ -75,6 +76,7 @@ fetch "https://raw.githubusercontent.com/denoland/deno/v$DENO_VERSION/LICENSE.md
 
 case "$TARGET" in
   universal-apple-darwin | aarch64-apple-darwin | x86_64-apple-darwin)
+    PYTHON_TARGETS=(aarch64-apple-darwin x86_64-apple-darwin)
     fetch_python aarch64-apple-darwin 149038dd0c194c25d4616d7e42a35f67f2edee96412788f74115819b6a4c8548
     fetch_python x86_64-apple-darwin d33d61f7f4982c94216e14a43599c75657b7d0839277fc72bc6dbac53e8229bc
     fetch_deno aarch64-apple-darwin deno-aarch64-apple-darwin.zip e3d3d7b21ce89105d96c316e9370b1f05aa6e87687f40faf37a39a613a477014 /tmp/deno-arm64
@@ -87,11 +89,13 @@ case "$TARGET" in
     chmod +x "$OUT"/deno-* "$OUT"/ffmpeg-* "$OUT"/ffprobe-*
     ;;
   x86_64-pc-windows-msvc)
+    PYTHON_TARGETS=(x86_64-pc-windows-msvc)
     fetch_python x86_64-pc-windows-msvc c1dc1e267f2a81493ce6e94837263f648f1eb6d0df73a1492469c1fed025ce8f
     fetch_deno x86_64-pc-windows-msvc deno-x86_64-pc-windows-msvc.zip 1b968541d115420ba04f7a5fbb5d0f8d620d9d87d492b66da5c97ca07e269b9b "$OUT/deno-$TARGET.exe"
     bash "$ROOT/scripts/build-ffmpeg.sh" "$TARGET"
     ;;
   x86_64-unknown-linux-gnu)
+    PYTHON_TARGETS=(x86_64-unknown-linux-gnu)
     fetch_python x86_64-unknown-linux-gnu 8af9a8214c71b2dd698005e39fab87aad02a994330508857da4e6d1ba7e6ddb6
     fetch_deno x86_64-unknown-linux-gnu deno-x86_64-unknown-linux-gnu.zip b2920265e633215959b09a32b67f46c93362842bbfd27c96e8acc2d24b66f563 "$OUT/deno-$TARGET"
     bash "$ROOT/scripts/build-ffmpeg.sh" "$TARGET"
@@ -103,4 +107,11 @@ esac
 bash "$ROOT/scripts/prepare-ffmpeg-source-material.sh" \
   "$FFMPEG_SOURCE_ARCHIVE" \
   "$LICENSE_OUT/ffmpeg-LGPL-2.1-or-later.txt"
+for python_target in "${PYTHON_TARGETS[@]}"; do
+  bash "$ROOT/scripts/prepare-bundled-notices.sh" \
+    "$WHEEL_OUT/yt-dlp-ejs.whl" \
+    "$PYTHON_OUT/$python_target" \
+    "$python_target" \
+    "$LICENSE_OUT"
+done
 cp THIRD_PARTY_NOTICES.md "$LICENSE_OUT/THIRD_PARTY_NOTICES.md"
