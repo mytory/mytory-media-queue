@@ -17,7 +17,7 @@ Downloader가 고화질 영상과 오디오를 병합하거나 변환할 수 있
 _피할 것_: 선택 설치 코덱, 시스템 FFmpeg
 
 **Bundled Tool Manifest**:
-Bundled Python, Downloader, Bundled Extractor, Bundled Runtime 및 Bundled Media Toolchain의 고정 버전, 원본 배포처, SHA-256 및 라이선스 고지를 함께 관리하는 배포 규칙. 설치 파일에는 대상 플랫폼의 도구 라이선스 원문을 포함한다.
+Bundled Python, Downloader, Bundled Extractor, Bundled Runtime 및 Bundled Media Toolchain의 고정 버전, 원본 배포처, SHA-256 및 라이선스 고지를 함께 관리하는 배포 규칙. Bundled Media Toolchain은 고정 FFmpeg source archive를 검증해 자체 빌드하며, Application Release에는 해당 source archive와 build script를 함께 제공한다. 설치 파일에는 대상 플랫폼의 도구 라이선스 원문을 포함한다.
 _피할 것_: `latest` URL, 검증 없는 바이너리, 고지 없는 재배포
 
 **Bundled Extractor**:

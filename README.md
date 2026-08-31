@@ -59,7 +59,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - 수동 빌드: Actions 탭 → **Build installers** → Run workflow
 - 버전 릴리스: 태그를 푸시하면 설치 파일이 GitHub Release에 첨부됩니다.
-- CI와 로컬 빌드는 `scripts/fetch-tools.sh <target-triple>`로 고정 버전의 Bundled Python, Downloader·Bundled Extractor wheel, Bundled Runtime 및 Bundled Media Toolchain을 내려받고 SHA-256을 검증합니다.
+- CI와 로컬 빌드는 `scripts/fetch-tools.sh <target-triple>`로 고정 버전의 Bundled Python, Downloader·Bundled Extractor wheel, Bundled Runtime을 내려받고 SHA-256을 검증합니다. Bundled Media Toolchain은 고정 FFmpeg source archive의 SHA-256을 검증한 뒤 자체 빌드합니다.
 
 ## 라이선스 및 제3자 소프트웨어
 
@@ -71,7 +71,8 @@ Managed Update manifest의 배포·갱신 절차는 [docs/MANAGED_UPDATE.md](doc
 [yt-dlp-ejs](https://github.com/yt-dlp/ejs), CPython, Deno, FFmpeg 및 FFprobe를
 설치 파일에 번들로 포함합니다. 고정한 버전, 원본 배포처 및 해당 라이선스 고지는
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 기록합니다. 설치 파일은
-대상 플랫폼의 도구 라이선스 원문을 함께 포함합니다.
+대상 플랫폼의 도구 라이선스 원문을 함께 포함합니다. FFmpeg source archive, 빌드 설정 및
+릴리스 제공 방식은 [docs/FFMPEG_BUILD.md](docs/FFMPEG_BUILD.md)를 참고하세요.
 
 Mytory Media Queue는 yt-dlp 프로젝트, YouTube 또는 Google과 제휴, 후원 또는 보증
 관계가 아닙니다. 콘텐츠 다운로드 전에는 해당 콘텐츠의 이용약관, 저작권 및 기타

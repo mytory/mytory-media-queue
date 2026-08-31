@@ -31,7 +31,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 
 ### 도구 배치와 실행
 
-1. Tauri의 플랫폼별 번들 리소스로 Python 실행 환경·Deno·FFmpeg·FFprobe와 최초 `yt-dlp`/`yt-dlp-ejs` 패키지 세트를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 실행 파일은 대상별 이름으로 준비한다. Downloader와 Bundled Media Toolchain은 고정 버전·SHA-256으로 검증하며 `latest` URL을 사용하지 않는다.
+1. Tauri의 플랫폼별 번들 리소스로 Python 실행 환경·Deno·FFmpeg·FFprobe와 최초 `yt-dlp`/`yt-dlp-ejs` 패키지 세트를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 실행 파일은 대상별 이름으로 준비한다. Downloader는 배포물 SHA-256을, Bundled Media Toolchain은 고정 FFmpeg source archive의 SHA-256을 검증한 뒤 자체 빌드하며 `latest` URL을 사용하지 않는다.
 2. 최초 실행 시 ToolManager가 `yt-dlp`와 `yt-dlp-ejs` 패키지 세트를 앱 데이터 디렉터리에 초기화한다. Downloader는 Bundled Python에서 그 세트를 실행하고, Rust는 절대 경로와 고정 인수 목록만 사용한다.
 3. `yt-dlp-ejs`와 yt-dlp는 같은 버전 세트로 보관한다. Bundled Python·Deno·FFmpeg 계열은 앱 릴리스에서만 바뀐다.
 4. 업데이트는 하루 한 번 시작 시 확인하거나 수동 확인한다. 공식 안정 릴리스와 체크섬의 출처·호환 세트는 구현 전 스파이크로 검증한다.
@@ -41,7 +41,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 
 모든 TDD 동작 테스트는 **실제 yt-dlp나 외부 사이트를 실행하지 않는다.** 대신 독립 실행 파일인 **Downloader Simulator**를 사용한다. Simulator는 실제 프로세스와 동일한 인수/표준출력 경계를 가지되, 시나리오에 따라 진행률·성공·일시 네트워크 실패·권한 실패·중단을 결정적으로 출력한다. 내부 메서드 mock은 사용하지 않는다.
 
-실제 번들 바이너리는 릴리스 전 별도 패키징 점검에서 해시와 `--version`만 확인한다. 네트워크를 통한 실제 다운로드는 TDD/CI의 필수 경로가 아니다.
+실제 번들 바이너리는 릴리스 전 별도 패키징 점검에서 해시와 `--version`만 확인한다. 네트워크를 통한 실제 다운로드는 TDD의 필수 경로가 아니며, 패키징 CI에서만 고정 URL·SHA-256으로 수행한다.
 
 ### 수직 슬라이스 순서
 
@@ -62,7 +62,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 - 세 플랫폼 target triple용 도구 목록과 획득/해시 매니페스트 형식을 확정한다.
 - `DownloaderRunner` 공개 계약과 Downloader Simulator를 먼저 만든다.
 - yt-dlp/`yt-dlp-ejs` 공식 안정 배포물, 체크섬, 호환 세트의 재현 가능한 획득 절차를 검증한다. 이 검증이 끝나기 전에는 자동 업데이트를 구현하지 않는다.
-- 최초 번들인 Downloader 및 Bundled Media Toolchain의 고정 버전·SHA-256·대상별 라이선스 원문을 `scripts/fetch-tools.sh`와 `THIRD_PARTY_NOTICES.md`로 관리한다.
+- 최초 번들인 Downloader와 Bundled Media Toolchain의 고정 버전·SHA-256·대상별 라이선스 원문을 `scripts/fetch-tools.sh`와 `THIRD_PARTY_NOTICES.md`로 관리한다. Bundled Media Toolchain의 source archive·build 설정·Release 제공 방식은 `docs/FFMPEG_BUILD.md`에 기록한다.
 
 ### 1. 대기열 수직 슬라이스
 
