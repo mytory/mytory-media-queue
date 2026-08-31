@@ -9,7 +9,8 @@ use std::{
 };
 
 use crate::{
-    DownloadFailureKind, DownloadQueue, DownloaderEvent, DownloaderRequest, DownloaderRunner,
+    DownloadFailureKind, DownloadQueue, DownloaderCommand, DownloaderEvent, DownloaderRequest,
+    DownloaderRunner,
 };
 
 const MAX_AUTO_RETRIES: u32 = 3;
@@ -17,7 +18,7 @@ const MAX_AUTO_RETRIES: u32 = 3;
 #[derive(Clone)]
 pub struct DownloadService {
     queue: Arc<DownloadQueue>,
-    executable: PathBuf,
+    command: DownloaderCommand,
     ffmpeg_dir: Option<PathBuf>,
     cancellations: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     cookie_sources: Arc<Mutex<HashMap<String, PathBuf>>>,
@@ -25,9 +26,13 @@ pub struct DownloadService {
 
 impl DownloadService {
     pub fn new(queue: Arc<DownloadQueue>, executable: impl Into<PathBuf>) -> Self {
+        Self::with_downloader_command(queue, DownloaderCommand::new(executable))
+    }
+
+    pub fn with_downloader_command(queue: Arc<DownloadQueue>, command: DownloaderCommand) -> Self {
         Self {
             queue,
-            executable: executable.into(),
+            command,
             ffmpeg_dir: None,
             cancellations: Arc::new(Mutex::new(HashMap::new())),
             cookie_sources: Arc::new(Mutex::new(HashMap::new())),
@@ -67,10 +72,8 @@ impl DownloadService {
                     .with_subtitles(job.write_subs)
                     .with_cookies(cookies)
                     .with_ffmpeg_location(service.ffmpeg_dir.clone());
-                let result = DownloaderRunner::new(&service.executable).run_with_cancellation(
-                    &request,
-                    cancellation,
-                    |event| {
+                let result = DownloaderRunner::with_command(service.command.clone())
+                    .run_with_cancellation(&request, cancellation, |event| {
                         if let DownloaderEvent::Progress {
                             percent,
                             speed_bytes_per_second,
@@ -85,8 +88,7 @@ impl DownloadService {
                                 *eta_seconds,
                             );
                         }
-                    },
-                );
+                    });
                 service
                     .cancellations
                     .lock()

@@ -7,6 +7,11 @@ import "./App.css";
 type DownloadStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 type OutputPreset = "mp4_compatible" | "best_video" | "original_audio" | "mp3_320";
 type FailureKind = "transient_network" | "permission" | "interrupted" | "unknown";
+type ManagedUpdateStatus = {
+  current_version: string;
+  state: "idle" | "current" | "updated" | "deferred";
+  message: string;
+};
 type QueueJob = {
   id: string;
   source_url: string;
@@ -35,6 +40,7 @@ function App() {
   const [destination, setDestination] = useState("");
   const [jobs, setJobs] = useState<QueueJob[]>([]);
   const [concurrency, setConcurrency] = useState(3);
+  const [updateStatus, setUpdateStatus] = useState<ManagedUpdateStatus | null>(null);
   const [outputPreset, setOutputPreset] = useState<OutputPreset>("mp4_compatible");
   const [writeSubs, setWriteSubs] = useState(false);
   const [cookies, setCookies] = useState("");
@@ -46,8 +52,14 @@ function App() {
 
   const refresh = async () => {
     try {
-      setJobs(await invoke<QueueJob[]>("list_downloads"));
-      setConcurrency(await invoke<number>("get_download_concurrency"));
+      const [nextJobs, nextConcurrency, nextUpdateStatus] = await Promise.all([
+        invoke<QueueJob[]>("list_downloads"),
+        invoke<number>("get_download_concurrency"),
+        invoke<ManagedUpdateStatus>("get_managed_update_status"),
+      ]);
+      setJobs(nextJobs);
+      setConcurrency(nextConcurrency);
+      setUpdateStatus(nextUpdateStatus);
     } catch (reason) {
       setError(String(reason));
     }
@@ -173,6 +185,23 @@ function App() {
     };
   }, [confirmClearOpen]);
 
+  async function checkManagedUpdate() {
+    const key = "managed-update:check";
+    setPending((ids) => new Set(ids).add(key));
+    setError("");
+    try {
+      setUpdateStatus(await invoke<ManagedUpdateStatus>("check_managed_update"));
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setPending((ids) => {
+        const next = new Set(ids);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+
   async function updateConcurrency(value: number) {
     setConcurrency(value);
     try {
@@ -228,7 +257,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><h1>Mytory yt-dlp GUI</h1></div>
+        <div className="brand-lockup"><span className="brand-mark"><img src={logoUrl} alt="Mytory" /></span><h1>Mytory Media Queue</h1></div>
         <div className="queue-meter" aria-label={`진행 ${activeCount}개, 대기 ${queuedCount}개`}><span className="meter-dot" /><span>진행 {activeCount}</span><span className="meter-divider">/</span><span>대기 {queuedCount}</span></div>
       </header>
 
@@ -248,6 +277,7 @@ function App() {
 
         <section className="queue-card" aria-labelledby="queue-heading">
           <div className="queue-heading"><div><p className="eyebrow">QUEUE / {jobs.length.toString().padStart(2, "0")}</p><h2 id="queue-heading">작업 목록</h2></div><div className="queue-heading-actions"><button className="quiet-button" type="button" onClick={() => setConfirmClearOpen(true)}>이력 지우기</button><button className="quiet-button" type="button" onClick={() => void refresh()}>새로고침</button></div></div>
+          <div className="managed-update" aria-live="polite"><div><strong>Downloader 업데이트</strong><span>{updateStatus ? `${updateStatus.current_version} · ${updateStatus.message}` : "상태를 불러오는 중"}</span></div><button className="quiet-button" type="button" disabled={pending.has("managed-update:check")} onClick={() => void checkManagedUpdate()}>{pending.has("managed-update:check") ? "확인 중" : "업데이트 확인"}</button></div>
           {jobs.length ? <ol className="job-list">{jobs.map((job, index) => <li key={job.id}><span className="job-index">{String(index + 1).padStart(2, "0")}</span><div className="job-content"><strong>{job.source_url}</strong><small>{job.destination}</small>{job.status === "failed" && job.diagnostic_log ? <details className="job-diagnostic"><summary>진단 로그{job.attempt_count > 0 ? ` · ${job.attempt_count}회 재시도 후` : ""}</summary><pre>{job.diagnostic_log}</pre></details> : null}</div><span className={`status status-${job.status}`}>{job.status === "running" && job.progress_percent !== null ? `${Math.round(job.progress_percent)}%` : statusLabel[job.status]}</span>{jobActions(job)}</li>)}</ol> : <div className="empty-state"><span>↓</span><h3>아직 작업이 없습니다</h3><p>위에 URL을 입력하면 이곳에서 순서와 상태를 확인할 수 있습니다.</p></div>}
         </section>
       </section>

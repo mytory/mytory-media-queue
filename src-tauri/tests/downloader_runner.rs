@@ -4,7 +4,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use mytory_yt_dlp_lib::{DownloadRun, DownloaderEvent, DownloaderRequest, DownloaderRunner};
+use mytory_media_queue_lib::{
+    DownloadRun, DownloaderCommand, DownloaderEvent, DownloaderRequest, DownloaderRunner,
+};
 
 #[test]
 fn reports_progress_and_completion_from_the_downloader_simulator() {
@@ -33,6 +35,25 @@ fn reports_progress_and_completion_from_the_downloader_simulator() {
             succeeded: true,
             diagnostic_log: None,
         }
+    );
+}
+
+#[test]
+fn runs_yt_dlp_from_the_bundled_python_environment_with_the_bundled_runtime() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let command = DownloaderCommand::bundled_python(
+        simulator,
+        "/tools/current/yt-dlp.whl",
+        "/tools/current/yt-dlp-ejs.whl",
+        "/resources/deno",
+    );
+    let request = DownloaderRequest::new("simulator://bundled-python", "/downloads");
+
+    assert!(
+        DownloaderRunner::with_command(command)
+            .run(&request)
+            .unwrap()
+            .succeeded
     );
 }
 
@@ -183,7 +204,7 @@ fn classifies_raw_network_errors_as_transient_with_a_refined_diagnostic() {
     assert!(matches!(
         run.events.last(),
         Some(DownloaderEvent::Failed {
-            kind: mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork,
+            kind: mytory_media_queue_lib::DownloadFailureKind::TransientNetwork,
             message,
         }) if message.contains("Name or service not known")
     ));
@@ -204,7 +225,7 @@ fn classifies_raw_permission_errors_without_retaining_raw_secrets() {
     assert!(matches!(
         run.events.last(),
         Some(DownloaderEvent::Failed {
-            kind: mytory_yt_dlp_lib::DownloadFailureKind::Permission,
+            kind: mytory_media_queue_lib::DownloadFailureKind::Permission,
             ..
         })
     ));
@@ -225,7 +246,7 @@ fn classifies_unrecognized_errors_as_unknown() {
     assert!(matches!(
         run.events.last(),
         Some(DownloaderEvent::Failed {
-            kind: mytory_yt_dlp_lib::DownloadFailureKind::Unknown,
+            kind: mytory_media_queue_lib::DownloadFailureKind::Unknown,
             message,
         }) if message.contains("Video unavailable")
     ));
@@ -245,7 +266,7 @@ fn reports_a_deterministic_interruption_from_the_downloader_simulator() {
             DownloaderEvent::Started { .. },
             DownloaderEvent::Progress { .. },
             DownloaderEvent::Failed {
-                kind: mytory_yt_dlp_lib::DownloadFailureKind::Interrupted,
+                kind: mytory_media_queue_lib::DownloadFailureKind::Interrupted,
                 message,
             }
         ] if message == "Download interrupted."
@@ -259,12 +280,12 @@ fn classifies_safe_simulator_failures_without_retaining_raw_stderr() {
     for (scenario, kind, message) in [
         (
             "simulator://transient-network-failure",
-            mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork,
+            mytory_media_queue_lib::DownloadFailureKind::TransientNetwork,
             "Temporary network interruption.",
         ),
         (
             "simulator://permission-failure",
-            mytory_yt_dlp_lib::DownloadFailureKind::Permission,
+            mytory_media_queue_lib::DownloadFailureKind::Permission,
             "Destination is not writable.",
         ),
     ] {

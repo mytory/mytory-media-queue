@@ -35,6 +35,22 @@ fn main() {
         "simulator://success" => {
             println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
         }
+        "simulator://bundled-python" => {
+            require_args(
+                &arguments,
+                &["-m", "yt_dlp", "--js-runtimes", "deno:/resources/deno"],
+            );
+            let python_path = env::var("PYTHONPATH").unwrap_or_default();
+            if !python_path.contains("/tools/current/yt-dlp.whl")
+                || !python_path.contains("/tools/current/yt-dlp-ejs.whl")
+            {
+                fail(
+                    "unknown",
+                    "Simulator did not receive the bundled Python package paths.",
+                );
+            }
+            println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
+        }
         "simulator://estimated-progress" => {
             println!("MYTORY_PROGRESS:524288:NA:1048576:1048576:12");
         }

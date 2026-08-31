@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use mytory_yt_dlp_lib::{DownloadQueue, DownloadStatus, DownloaderRequest, DownloaderRunner};
+use mytory_media_queue_lib::{DownloadQueue, DownloadStatus, DownloaderRequest, DownloaderRunner};
 
 #[test]
 fn starts_jobs_in_fifo_order_up_to_the_configured_concurrency() {

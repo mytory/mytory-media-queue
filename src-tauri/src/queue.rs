@@ -161,6 +161,32 @@ impl DownloadQueue {
         Ok(true)
     }
 
+    pub fn has_running_work(&self) -> Result<bool> {
+        let connection = self.connection.lock().expect("queue lock poisoned");
+        connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM download_jobs WHERE status = 'running')",
+            [],
+            |row| row.get(0),
+        )
+    }
+
+    pub fn managed_update_is_due(&self) -> Result<bool> {
+        let connection = self.connection.lock().expect("queue lock poisoned");
+        connection.query_row(
+            "SELECT NOT EXISTS(SELECT 1 FROM app_settings WHERE key = 'managed_update_last_checked_at' AND updated_at >= datetime('now', '-1 day'))",
+            [],
+            |row| row.get(0),
+        )
+    }
+
+    pub fn record_managed_update_check(&self) -> Result<()> {
+        self.connection.lock().expect("queue lock poisoned").execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES ('managed_update_last_checked_at', 'checked', CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            [],
+        )?;
+        Ok(())
+    }
+
     pub fn start_available(&self) -> Result<Vec<QueueJob>> {
         let concurrency = self.concurrency()? as usize;
         let connection = self.connection.lock().expect("queue lock poisoned");

@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-use mytory_yt_dlp_lib::migrate;
+use mytory_media_queue_lib::migrate;
 
 #[test]
 fn creates_the_local_queue_schema_without_a_cookie_column() {

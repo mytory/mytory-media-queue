@@ -60,7 +60,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Fetch bundled media toolchain
+      - name: Fetch verified bundled tools
         shell: bash
         run: |
           case "${{ matrix.platform }}" in

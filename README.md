@@ -1,8 +1,8 @@
-# Mytory YT-DLP
+# Mytory Media Queue
 
-[yt-dlp](https://github.com/yt-dlp/yt-dlp)를 번들로 제공하는 로컬 우선 데스크톱 미디어 다운로드 도구입니다.
+Mytory Media Queue는 [yt-dlp](https://github.com/yt-dlp/yt-dlp)와 FFmpeg을 번들로 사용하는 로컬 우선 데스크톱 미디어 다운로드 도구입니다. 제3자 소프트웨어의 라이선스와 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 참고하세요.
 
-> **개발 중**: Download Queue 영속화·재개·스케줄링, 실제 다운로드 실행, 출력 옵션(썸네일·자막), 쿠키 파일, 실패 복구(3회 재시도·진단 로그), 이력 정리, yt-dlp/FFmpeg/FFprobe sidecar 번들, GitHub Actions 기반 설치 패키지 빌드를 구현했습니다. Deno/`yt-dlp-ejs` 번들(YouTube 자바스크립트 추출기)과 Managed Update는 아직 완성되지 않았습니다.
+> **개발 중**: Download Queue와 다운로드 실행 기능을 구현했습니다. 설치 패키지는 Bundled Python, Downloader(`yt-dlp` wheel), Bundled Extractor(`yt-dlp-ejs` wheel), Bundled Runtime(Deno), FFmpeg/FFprobe를 고정 버전·SHA-256으로 포함합니다. Managed Update는 고정 GitHub Release manifest를 하루 한 번 또는 수동으로 확인하고, 활성 다운로드가 없을 때만 Downloader와 Bundled Extractor를 함께 교체합니다.
 
 ## 목표
 
@@ -25,7 +25,9 @@
 - 썸네일 기본 저장, 선택형 자막(한국어·영어, `.vtt`), 쿠키 파일(`cookies.txt`) 전달
 - 일시적 네트워크 오류 자동 재시도(최대 3회), 그 외 실패는 정제된 진단 로그 저장·복사·결과 폴더 열기
 - 완료·실패·취소 이력 지우기(파일은 삭제하지 않음)와 90일 이전 완료 이력 정리
-- 셸을 만들지 않고 고정 인수 목록으로 Downloader 프로세스를 실행하는 `DownloaderRunner`
+- 셸을 만들지 않고 Bundled Python의 `python -m yt_dlp`, 고정 `--js-runtimes deno:<절대 경로>`, 고정 `PYTHONPATH`와 인수 목록으로 Downloader 프로세스를 실행하는 `DownloaderRunner`
+- 최초 실행 시 검증된 Downloader와 Bundled Extractor wheel을 앱 데이터 디렉터리에 함께 초기화하고, 이후 원자 교체 시 이전 세트를 보존하는 `ToolManager`
+- `managed-tools-v1` 고정 Release asset manifest를 하루 한 번 또는 수동으로 확인하고, 진행 중인 Download Queue가 있으면 적용을 지연하는 **Managed Update**
 - 실제 네트워크 없이 프로세스 경계·진행률·성공·실패·중단·재시도를 재현하는 **Downloader Simulator**
 
 ## 개발 환경
@@ -57,18 +59,21 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - 수동 빌드: Actions 탭 → **Build installers** → Run workflow
 - 버전 릴리스: 태그를 푸시하면 설치 파일이 GitHub Release에 첨부됩니다.
-- CI와 로컬 빌드는 `scripts/fetch-tools.sh <target-triple>`로 고정 버전의 Downloader와 Bundled Media Toolchain을 내려받고 SHA-256을 검증합니다.
+- CI와 로컬 빌드는 `scripts/fetch-tools.sh <target-triple>`로 고정 버전의 Bundled Python, Downloader·Bundled Extractor wheel, Bundled Runtime 및 Bundled Media Toolchain을 내려받고 SHA-256을 검증합니다.
 
 ## 라이선스 및 제3자 소프트웨어
 
 이 프로젝트는 [GPL-3.0-or-later](LICENSE)로 배포됩니다.
 
-이 애플리케이션은 [yt-dlp](https://github.com/yt-dlp/yt-dlp), FFmpeg 및
-FFprobe를 설치 파일에 번들로 포함합니다. 고정한 버전, 원본 배포처 및
-해당 라이선스 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에
-기록합니다. 설치 파일은 대상 플랫폼의 FFmpeg 라이선스 원문도 함께 포함합니다.
+Managed Update manifest의 배포·갱신 절차는 [docs/MANAGED_UPDATE.md](docs/MANAGED_UPDATE.md)를 참고하세요.
 
-Mytory YT-DLP는 yt-dlp 프로젝트, YouTube 또는 Google과 제휴, 후원 또는 보증
+이 애플리케이션은 [yt-dlp](https://github.com/yt-dlp/yt-dlp),
+[yt-dlp-ejs](https://github.com/yt-dlp/ejs), CPython, Deno, FFmpeg 및 FFprobe를
+설치 파일에 번들로 포함합니다. 고정한 버전, 원본 배포처 및 해당 라이선스 고지는
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 기록합니다. 설치 파일은
+대상 플랫폼의 도구 라이선스 원문을 함께 포함합니다.
+
+Mytory Media Queue는 yt-dlp 프로젝트, YouTube 또는 Google과 제휴, 후원 또는 보증
 관계가 아닙니다. 콘텐츠 다운로드 전에는 해당 콘텐츠의 이용약관, 저작권 및 기타
 적용 법령에 따른 권한이 있는지 확인해야 합니다.
 

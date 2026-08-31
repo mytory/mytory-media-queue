@@ -185,16 +185,57 @@ impl Error for DownloaderError {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DownloaderCommand {
+    program: PathBuf,
+    prefix_arguments: Vec<String>,
+    environment: Vec<(String, String)>,
+}
+
+impl DownloaderCommand {
+    pub fn new(program: impl Into<PathBuf>) -> Self {
+        Self {
+            program: program.into(),
+            prefix_arguments: Vec::new(),
+            environment: Vec::new(),
+        }
+    }
+
+    pub fn bundled_python(
+        python: impl Into<PathBuf>,
+        downloader: impl AsRef<Path>,
+        extractor: impl AsRef<Path>,
+        deno: impl AsRef<Path>,
+    ) -> Self {
+        let module_path = std::env::join_paths([downloader.as_ref(), extractor.as_ref()])
+            .expect("wheel paths do not contain path-list separators")
+            .to_string_lossy()
+            .into_owned();
+        Self {
+            program: python.into(),
+            prefix_arguments: vec![
+                "-m".into(),
+                "yt_dlp".into(),
+                "--js-runtimes".into(),
+                format!("deno:{}", deno.as_ref().display()),
+            ],
+            environment: vec![("PYTHONPATH".into(), module_path)],
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DownloaderRunner {
-    executable: PathBuf,
+    command: DownloaderCommand,
 }
 
 impl DownloaderRunner {
     pub fn new(executable: impl Into<PathBuf>) -> Self {
-        Self {
-            executable: executable.into(),
-        }
+        Self::with_command(DownloaderCommand::new(executable))
+    }
+
+    pub fn with_command(command: DownloaderCommand) -> Self {
+        Self { command }
     }
 
     pub fn run(&self, request: &DownloaderRequest) -> Result<DownloadRun, DownloaderError> {
@@ -222,8 +263,15 @@ impl DownloaderRunner {
         F: FnMut(&DownloaderEvent),
     {
         let output_template = request.destination.join("%(title)s [%(id)s].%(ext)s");
-        let mut command = Command::new(&self.executable);
+        let mut command = Command::new(&self.command.program);
         command
+            .args(&self.command.prefix_arguments)
+            .envs(
+                self.command
+                    .environment
+                    .iter()
+                    .map(|(key, value)| (key, value)),
+            )
             .args(["--newline", "--progress-template", PROGRESS_TEMPLATE, "-o"])
             .arg(output_template);
         if request.write_thumbnail {
@@ -273,7 +321,7 @@ impl DownloaderRunner {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|source| DownloaderError::Spawn {
-                executable: self.executable.clone(),
+                executable: self.command.program.clone(),
                 source,
             })?;
         let stdout = child.stdout.take().expect("stdout is piped");
@@ -327,7 +375,7 @@ impl DownloaderRunner {
                     return stop_child(
                         child,
                         DownloaderError::ReadOutput {
-                            executable: self.executable.clone(),
+                            executable: self.command.program.clone(),
                             source,
                         },
                     );
@@ -336,7 +384,7 @@ impl DownloaderRunner {
         }
 
         let status = child.wait().map_err(|source| DownloaderError::Wait {
-            executable: self.executable.clone(),
+            executable: self.command.program.clone(),
             source,
         })?;
         let _ = stdout_reader.join();

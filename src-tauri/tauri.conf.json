@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Mytory YT-DLP GUI",
+  "productName": "Mytory Media Queue",
   "version": "0.1.0",
-  "identifier": "com.mytory.ytdlp",
+  "identifier": "com.mytory.mediaqueue",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Mytory YT-DLP GUI",
+        "title": "Mytory Media Queue",
         "width": 1100,
         "height": 720,
         "minWidth": 800,
@@ -29,8 +29,8 @@
     "license": "GPL-3.0-or-later",
     "licenseFile": "../LICENSE",
     "targets": "all",
-    "externalBin": ["binaries/yt-dlp", "binaries/ffmpeg", "binaries/ffprobe"],
-    "resources": ["binaries/licenses"],
+    "externalBin": ["binaries/deno", "binaries/ffmpeg", "binaries/ffprobe"],
+    "resources": ["binaries/licenses", "binaries/python", "binaries/wheels"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

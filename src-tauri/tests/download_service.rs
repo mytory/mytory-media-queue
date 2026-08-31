@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc, thread, time::Duration};
 
-use mytory_yt_dlp_lib::{DownloadQueue, DownloadService, DownloadStatus};
+use mytory_media_queue_lib::{DownloadQueue, DownloadService, DownloadStatus};
 
 #[test]
 fn starts_queued_work_and_persists_completion() {
@@ -70,7 +70,7 @@ fn retries_transient_network_failures_up_to_three_times_then_fails() {
             assert_eq!(job.attempt_count, 3);
             assert_eq!(
                 job.failure_kind,
-                Some(mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork)
+                Some(mytory_media_queue_lib::DownloadFailureKind::TransientNetwork)
             );
             return;
         }
@@ -98,7 +98,7 @@ fn does_not_retry_permanent_failures() {
             assert_eq!(job.attempt_count, 0);
             assert_eq!(
                 job.failure_kind,
-                Some(mytory_yt_dlp_lib::DownloadFailureKind::Permission)
+                Some(mytory_media_queue_lib::DownloadFailureKind::Permission)
             );
             return;
         }

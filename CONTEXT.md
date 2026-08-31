@@ -1,4 +1,4 @@
-# Mytory YT-DLP
+# Mytory Media Queue
 
 공개 소스 저장소에서 개발하는, yt-dlp 기반의 데스크톱 미디어 다운로드 도구이다.
 
@@ -17,7 +17,7 @@ Downloader가 고화질 영상과 오디오를 병합하거나 변환할 수 있
 _피할 것_: 선택 설치 코덱, 시스템 FFmpeg
 
 **Bundled Tool Manifest**:
-Downloader와 Bundled Media Toolchain의 고정 버전, 원본 배포처, SHA-256 및 라이선스 고지를 함께 관리하는 배포 규칙. 설치 파일에는 대상 플랫폼의 도구 라이선스 원문을 포함한다.
+Bundled Python, Downloader, Bundled Extractor, Bundled Runtime 및 Bundled Media Toolchain의 고정 버전, 원본 배포처, SHA-256 및 라이선스 고지를 함께 관리하는 배포 규칙. 설치 파일에는 대상 플랫폼의 도구 라이선스 원문을 포함한다.
 _피할 것_: `latest` URL, 검증 없는 바이너리, 고지 없는 재배포
 
 **Bundled Extractor**:

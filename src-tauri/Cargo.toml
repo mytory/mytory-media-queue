@@ -1,11 +1,11 @@
 [package]
-name = "mytory-yt-dlp"
+name = "mytory-media-queue"
 version = "0.1.0"
-description = "A local-first desktop download queue powered by yt-dlp"
+description = "A local-first desktop media download queue"
 license = "GPL-3.0-or-later"
 authors = ["Mytory"]
 edition = "2021"
-default-run = "mytory-yt-dlp"
+default-run = "mytory-media-queue"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,7 +13,7 @@ default-run = "mytory-yt-dlp"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "mytory_yt_dlp_lib"
+name = "mytory_media_queue_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -24,7 +24,9 @@ tauri = { version = "2", features = [] }
 rusqlite = { version = "0.38", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+ureq = "2.12"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 

@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use mytory_yt_dlp_lib::{
+use mytory_media_queue_lib::{
     DownloadQueue, DownloadStatus, DownloaderRequest, DownloaderRunner, OutputPreset,
 };
 
@@ -94,7 +94,7 @@ fn persists_the_subtitle_flag_and_failure_details() {
     queue
         .mark_failed(
             &job.id,
-            Some(mytory_yt_dlp_lib::DownloadFailureKind::Permission),
+            Some(mytory_media_queue_lib::DownloadFailureKind::Permission),
             Some("Destination is not writable.".into()),
         )
         .unwrap();
@@ -103,7 +103,7 @@ fn persists_the_subtitle_flag_and_failure_details() {
     assert!(saved.write_subs);
     assert_eq!(
         saved.failure_kind,
-        Some(mytory_yt_dlp_lib::DownloadFailureKind::Permission)
+        Some(mytory_media_queue_lib::DownloadFailureKind::Permission)
     );
     assert_eq!(
         saved.diagnostic_log.as_deref(),
@@ -125,7 +125,7 @@ fn retry_clears_failure_details_and_increments_the_attempt_count() {
     queue
         .mark_failed(
             &job.id,
-            Some(mytory_yt_dlp_lib::DownloadFailureKind::TransientNetwork),
+            Some(mytory_media_queue_lib::DownloadFailureKind::TransientNetwork),
             Some("Temporary network interruption.".into()),
         )
         .unwrap();
@@ -165,6 +165,15 @@ fn clears_only_terminal_history_and_keeps_active_work() {
     let remaining = queue.jobs().unwrap();
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].source_url, "https://example.test/pending");
+}
+
+#[test]
+fn records_the_daily_managed_update_check_without_touching_download_jobs() {
+    let queue = DownloadQueue::in_memory().unwrap();
+    assert!(queue.managed_update_is_due().unwrap());
+    queue.record_managed_update_check().unwrap();
+    assert!(!queue.managed_update_is_due().unwrap());
+    assert!(queue.jobs().unwrap().is_empty());
 }
 
 #[test]

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mytory_yt_dlp_lib::run()
+    mytory_media_queue_lib::run()
 }

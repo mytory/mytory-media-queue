@@ -1,4 +1,4 @@
-# Mytory YT-DLP 실행 계획
+# Mytory Media Queue 실행 계획
 
 ## 목표
 
@@ -7,7 +7,7 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 ## 확정 범위
 
 - UI/런타임: Tauri 2, React/TypeScript, Rust.
-- 번들: Deno, FFmpeg, FFprobe, `yt-dlp-ejs`; yt-dlp는 최초 설치본도 제공한다.
+- 번들: Python 실행 환경, Deno, FFmpeg, FFprobe. Python 환경에는 최초 `yt-dlp`와 `yt-dlp-ejs`를 함께 설치한다.
 - 지원: Windows x64, macOS Apple Silicon·Intel Universal, Linux x64.
 - 입력: 다중 URL, 재생목록 확장, 실행 중 대기열 추가.
 - 출력: URL 추가 시 목적지를 선택하며 기본값은 OS 다운로드 폴더. MP4 호환 우선이 기본값이고, 최고 품질 영상·원본 품질 오디오·MP3 320kbps를 제공한다.
@@ -31,9 +31,9 @@ Windows x64, macOS Universal, Linux x64에서 설치해 사용하는 Tauri 2 데
 
 ### 도구 배치와 실행
 
-1. Tauri의 플랫폼별 sidecar 번들로 Deno·FFmpeg·FFprobe·초기 yt-dlp를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 각 대상별 도구를 준비한다. Downloader와 Bundled Media Toolchain은 고정 버전·SHA-256으로 검증하며 `latest` URL을 사용하지 않는다.
-2. 최초 실행 시 관리 대상 도구를 앱 데이터 디렉터리에 초기화한다. 실행은 Rust가 절대 경로와 고정 인수 목록으로 수행하며 셸 문자열을 만들지 않는다.
-3. `yt-dlp-ejs`와 yt-dlp는 같은 버전 세트로 보관한다. Deno와 FFmpeg 계열은 앱 릴리스에서만 바뀐다.
+1. Tauri의 플랫폼별 번들 리소스로 Python 실행 환경·Deno·FFmpeg·FFprobe와 최초 `yt-dlp`/`yt-dlp-ejs` 패키지 세트를 포함한다. Tauri는 target triple 접미사가 붙은 sidecar를 요구하므로 실행 파일은 대상별 이름으로 준비한다. Downloader와 Bundled Media Toolchain은 고정 버전·SHA-256으로 검증하며 `latest` URL을 사용하지 않는다.
+2. 최초 실행 시 ToolManager가 `yt-dlp`와 `yt-dlp-ejs` 패키지 세트를 앱 데이터 디렉터리에 초기화한다. Downloader는 Bundled Python에서 그 세트를 실행하고, Rust는 절대 경로와 고정 인수 목록만 사용한다.
+3. `yt-dlp-ejs`와 yt-dlp는 같은 버전 세트로 보관한다. Bundled Python·Deno·FFmpeg 계열은 앱 릴리스에서만 바뀐다.
 4. 업데이트는 하루 한 번 시작 시 확인하거나 수동 확인한다. 공식 안정 릴리스와 체크섬의 출처·호환 세트는 구현 전 스파이크로 검증한다.
 5. 새 파일은 임시 디렉터리에 다운로드하고 해시·실행 가능 여부를 확인한다. 활성 작업이 없을 때만 현재 세트를 교체하고, 실패 시 이전 세트를 유지한다.
 
