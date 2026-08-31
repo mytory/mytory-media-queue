@@ -45,7 +45,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libfuse2
+            libfuse2 \
+            build-essential
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -60,7 +61,26 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Fetch verified bundled tools
+      - name: Install Windows FFmpeg build dependencies
+        if: matrix.platform == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            make
+            curl
+            perl
+            xz
+
+      - name: Fetch verified bundled tools on Windows
+        if: matrix.platform == 'windows-latest'
+        shell: msys2 {0}
+        run: bash scripts/fetch-tools.sh "${{ matrix.rust_targets }}"
+
+      - name: Fetch verified bundled tools on macOS or Linux
+        if: matrix.platform != 'windows-latest'
         shell: bash
         run: |
           case "${{ matrix.platform }}" in
