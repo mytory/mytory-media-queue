@@ -1,6 +1,7 @@
 use std::{env, process, thread::sleep, time::Duration};
 
 const PROGRESS_TEMPLATE: &str = "download:MYTORY_PROGRESS:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress.total_bytes_estimate)s:%(progress.speed)s:%(progress.eta)s";
+const OUTPUT_TEMPLATE: &str = "%(title)s [%(id)s].%(ext)s";
 
 fn main() {
     let arguments: Vec<String> = env::args().skip(1).collect();
@@ -11,6 +12,9 @@ fn main() {
     let has_expected_progress_template = arguments.windows(2).any(|arguments| {
         arguments[0] == "--progress-template" && arguments[1] == PROGRESS_TEMPLATE
     });
+    let has_expected_output_template = arguments
+        .windows(2)
+        .any(|arguments| arguments[0] == "-o" && arguments[1].ends_with(OUTPUT_TEMPLATE));
 
     if !arguments.iter().any(|argument| argument == "--newline")
         || !arguments.iter().any(|argument| argument == "-o")
@@ -19,6 +23,7 @@ fn main() {
             .iter()
             .any(|argument| argument == "--write-thumbnail")
         || !has_expected_progress_template
+        || !has_expected_output_template
     {
         fail(
             "unknown",

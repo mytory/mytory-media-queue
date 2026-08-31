@@ -221,7 +221,7 @@ impl DownloaderRunner {
     where
         F: FnMut(&DownloaderEvent),
     {
-        let output_template = request.destination.join("%(title)s.%(ext)s");
+        let output_template = request.destination.join("%(title)s [%(id)s].%(ext)s");
         let mut command = Command::new(&self.executable);
         command
             .args(["--newline", "--progress-template", PROGRESS_TEMPLATE, "-o"])
