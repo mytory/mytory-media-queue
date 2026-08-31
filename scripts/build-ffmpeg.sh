@@ -16,10 +16,13 @@ JOBS="${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/mytory-ffmpeg.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-mkdir -p "$OUT"
+SOURCE_OUT="$OUT/ffmpeg-source"
+mkdir -p "$OUT" "$SOURCE_OUT"
 ARCHIVE="$WORK/ffmpeg-$FFMPEG_VERSION.tar.xz"
+SOURCE_ARCHIVE="$SOURCE_OUT/ffmpeg-$FFMPEG_VERSION.tar.xz"
 curl -fL --retry 3 -o "$ARCHIVE" "$FFMPEG_SOURCE_URL"
 printf '%s  %s\n' "$FFMPEG_SOURCE_SHA256" "$ARCHIVE" | shasum -a 256 -c -
+cp "$ARCHIVE" "$SOURCE_ARCHIVE"
 
 build_one() {
   local arch="$1" output_suffix="$2" extension="$3"

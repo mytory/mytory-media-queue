@@ -1,8 +1,8 @@
 # Third-party notices
 
 Mytory Media Queue bundles the following command-line tools and Python packages in its
-application installers. The installation bundle also contains the corresponding license
-texts under `resources/licenses/`.
+application installers. The installation bundle contains the corresponding license texts
+at the Tauri resource-relative path `binaries/licenses/`.
 
 ## Downloader: yt-dlp 2026.8.19
 
@@ -31,16 +31,20 @@ texts under `resources/licenses/`.
 - Download source: <https://github.com/denoland/deno/releases/tag/v2.3.1>
 - License: MIT. The exact text is included as `deno-LICENSE`.
 
-## FFmpeg and FFprobe b6.1.1
+## Bundled Media Toolchain: FFmpeg and FFprobe 7.1.1
 
-- Binary provider: <https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1>
-- Upstream project: <https://ffmpeg.org/>
-- License: The exact license text supplied by the binary provider is packaged in each
-  installer under `resources/licenses/ffmpeg-*-LICENSE`.
+- Upstream project and source archive: <https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz>
+- Source archive SHA-256: `733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1`
+- Build script: [`scripts/build-ffmpeg.sh`](scripts/build-ffmpeg.sh) at this Application
+  Release's Git tag. It builds without GPL, nonfree, or external codec options.
+- License: LGPL-2.1-or-later. The exact LGPL-2.1 text is installed as
+  `binaries/licenses/ffmpeg-LGPL-2.1-or-later.txt`.
+- Corresponding Source: the same versioned Application Release includes the verified
+  `ffmpeg-7.1.1.tar.xz` source archive as a Release asset. The release tag's source tree
+  contains the exact build script and CI configuration used for that asset.
 
-The Windows x64 and Linux x64 binaries used by this project are GPL-3.0-or-later.
-The macOS binaries used by this project are LGPL-2.1-or-later according to their
-provider-supplied license texts. This project itself is GPL-3.0-or-later; see
+The Bundled Media Toolchain is built from this source by this project for Windows x64,
+macOS Universal, and Linux x64. This project itself is GPL-3.0-or-later; see
 [`LICENSE`](LICENSE).
 
 ## Application dependencies

@@ -20,6 +20,8 @@ PYTHON_VERSION="3.13.15"
 DENO_VERSION="2.3.1"
 YTDLP_WHEEL_URL="https://files.pythonhosted.org/packages/69/b2/8cd1613f56eed7ceb64fbd4df3f1c01246bfb098e6f398228bafda22b80b/yt_dlp-2026.8.19-py3-none-any.whl"
 EJS_WHEEL_URL="https://github.com/yt-dlp/ejs/releases/download/0.8.0/yt_dlp_ejs-0.8.0-py3-none-any.whl"
+FFMPEG_VERSION="7.1.1"
+FFMPEG_SOURCE_ARCHIVE="$OUT/ffmpeg-source/ffmpeg-$FFMPEG_VERSION.tar.xz"
 
 mkdir -p "$OUT" "$LICENSE_OUT" "$WHEEL_OUT" "$PYTHON_OUT"
 
@@ -98,4 +100,7 @@ case "$TARGET" in
   *) echo "unsupported target: $TARGET" >&2; exit 1 ;;
 esac
 
+bash "$ROOT/scripts/prepare-ffmpeg-source-material.sh" \
+  "$FFMPEG_SOURCE_ARCHIVE" \
+  "$LICENSE_OUT/ffmpeg-LGPL-2.1-or-later.txt"
 cp THIRD_PARTY_NOTICES.md "$LICENSE_OUT/THIRD_PARTY_NOTICES.md"

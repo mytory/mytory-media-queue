@@ -117,3 +117,9 @@ jobs:
             ${{ matrix.bundle_dir }}/**/*.msi
             ${{ matrix.bundle_dir }}/**/*.AppImage
             ${{ matrix.bundle_dir }}/**/*.deb
+
+      - name: Attach FFmpeg corresponding source to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.platform == 'ubuntu-22.04'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/binaries/ffmpeg-source/ffmpeg-7.1.1.tar.xz
