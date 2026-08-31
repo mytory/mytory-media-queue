@@ -2,7 +2,7 @@
 
 Mytory Media Queue는 [yt-dlp](https://github.com/yt-dlp/yt-dlp)와 FFmpeg을 번들로 사용하는 로컬 우선 데스크톱 미디어 다운로드 도구입니다. 제3자 소프트웨어의 라이선스와 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 참고하세요.
 
-> **개발 중**: Download Queue와 다운로드 실행 기능을 구현했습니다. 설치 패키지는 Bundled Python, Downloader(`yt-dlp` wheel), Bundled Extractor(`yt-dlp-ejs` wheel), Bundled Runtime(Deno), FFmpeg/FFprobe를 고정 버전·SHA-256으로 포함합니다. Managed Update는 고정 GitHub Release manifest를 하루 한 번 또는 수동으로 확인하고, 활성 다운로드가 없을 때만 Downloader와 Bundled Extractor를 함께 교체합니다.
+> **v1.0.0**: 첫 안정 릴리스입니다. 설치 패키지는 Bundled Python, Downloader(`yt-dlp` wheel), Bundled Extractor(`yt-dlp-ejs` wheel), Bundled Runtime(Deno), FFmpeg/FFprobe를 고정 버전·SHA-256으로 포함합니다. Managed Update는 고정 GitHub Release manifest를 하루 한 번 또는 수동으로 확인하고, 활성 다운로드가 없을 때만 Downloader와 Bundled Extractor를 함께 교체합니다.
 
 ## 목표
 
