@@ -71,6 +71,7 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             make
             curl
+            diffutils
             perl
             unzip
             xz

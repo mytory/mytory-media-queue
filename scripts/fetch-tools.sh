@@ -97,6 +97,7 @@ case "$TARGET" in
   x86_64-unknown-linux-gnu)
     PYTHON_TARGETS=(x86_64-unknown-linux-gnu)
     fetch_python x86_64-unknown-linux-gnu 8af9a8214c71b2dd698005e39fab87aad02a994330508857da4e6d1ba7e6ddb6
+    bash "$ROOT/scripts/prune-bundled-python.sh" "$PYTHON_OUT/x86_64-unknown-linux-gnu"
     fetch_deno x86_64-unknown-linux-gnu deno-x86_64-unknown-linux-gnu.zip b2920265e633215959b09a32b67f46c93362842bbfd27c96e8acc2d24b66f563 "$OUT/deno-$TARGET"
     bash "$ROOT/scripts/build-ffmpeg.sh" "$TARGET"
     chmod +x "$OUT"/deno-* "$OUT"/ffmpeg-* "$OUT"/ffprobe-*
