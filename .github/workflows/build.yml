@@ -72,6 +72,7 @@ jobs:
             make
             curl
             perl
+            unzip
             xz
 
       - name: Fetch verified bundled tools on Windows
@@ -91,7 +92,12 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build installer
+      - name: Build Linux installer with verbose bundler logs
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run tauri build -- --verbose --bundles ${{ matrix.bundles }} ${{ matrix.tauri_args }}
+
+      - name: Build macOS or Windows installer
+        if: matrix.platform != 'ubuntu-22.04'
         run: npm run tauri build -- --bundles ${{ matrix.bundles }} ${{ matrix.tauri_args }}
 
       - uses: actions/upload-artifact@v4
