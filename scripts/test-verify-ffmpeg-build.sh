@@ -41,7 +41,8 @@ if grep -Fq 'eugeneware/ffmpeg-static' "$ROOT/scripts/fetch-tools.sh"; then
 fi
 
 make_tool ffprobe-x86_64-unknown-linux-gnu 'GNU General Public License version 3 or later'
-if "$VERIFY" x86_64-unknown-linux-gnu "$TEMP" >/dev/null 2>&1; then
+if failure_output="$("$VERIFY" x86_64-unknown-linux-gnu "$TEMP" 2>&1)"; then
   echo 'expected GPL output to be rejected' >&2
   exit 1
 fi
+grep -Fq 'license output: GNU General Public License version 3 or later' <<<"$failure_output"
