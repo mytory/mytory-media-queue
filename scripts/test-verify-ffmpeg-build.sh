@@ -28,6 +28,10 @@ make_tool ffmpeg-x86_64-unknown-linux-gnu 'GNU Lesser General Public License ver
 make_tool ffprobe-x86_64-unknown-linux-gnu 'GNU Lesser General Public License version 2.1 or later'
 "$VERIFY" x86_64-unknown-linux-gnu "$TEMP"
 
+make_tool ffmpeg-x86_64-unknown-linux-gnu 'LGPL version 2.1 or later'
+make_tool ffprobe-x86_64-unknown-linux-gnu 'LGPL version 2.1 or later'
+"$VERIFY" x86_64-unknown-linux-gnu "$TEMP"
+
 grep -Fq 'FFMPEG_VERSION="7.1.1"' "$ROOT/scripts/build-ffmpeg.sh"
 grep -Fq 'FFMPEG_SOURCE_SHA256="733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1"' "$ROOT/scripts/build-ffmpeg.sh"
 grep -Fq 'make -j "$JOBS" "ffmpeg$extension" "ffprobe$extension"' "$ROOT/scripts/build-ffmpeg.sh"
