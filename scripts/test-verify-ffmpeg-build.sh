@@ -30,6 +30,7 @@ make_tool ffprobe-x86_64-unknown-linux-gnu 'GNU Lesser General Public License ve
 
 grep -Fq 'FFMPEG_VERSION="7.1.1"' "$ROOT/scripts/build-ffmpeg.sh"
 grep -Fq 'FFMPEG_SOURCE_SHA256="733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1"' "$ROOT/scripts/build-ffmpeg.sh"
+grep -Fq 'make -j "$JOBS" "ffmpeg$extension" "ffprobe$extension"' "$ROOT/scripts/build-ffmpeg.sh"
 if grep -Fq 'eugeneware/ffmpeg-static' "$ROOT/scripts/fetch-tools.sh"; then
   echo 'fetch-tools.sh must not download FFmpeg from ffmpeg-static' >&2
   exit 1

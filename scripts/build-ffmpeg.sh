@@ -46,7 +46,7 @@ build_one() {
       --enable-ffmpeg \
       --enable-ffprobe \
       "$@"
-    make -j "$JOBS" ffmpeg ffprobe
+    make -j "$JOBS" "ffmpeg$extension" "ffprobe$extension"
   )
   cp "$source/ffmpeg$extension" "$OUT/ffmpeg-$output_suffix$extension"
   cp "$source/ffprobe$extension" "$OUT/ffprobe-$output_suffix$extension"
