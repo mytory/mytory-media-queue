@@ -33,6 +33,7 @@ verify_program() {
   fi
 
   license="$($binary -L 2>&1)"
+  license="${license//$'\r'/}"
   license="${license//$'\n'/ }"
   grep -Eq 'GNU Lesser General Public License|LGPL version 2\.1 or later' <<<"$license" || {
     echo "$binary does not report an LGPL license" >&2
