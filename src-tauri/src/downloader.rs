@@ -20,6 +20,8 @@ const OUTPUT_CHANNEL_CAPACITY: usize = 16;
 const CANCELLATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25);
 const MAX_STDERR_TAIL_LINES: usize = 30;
 const MAX_DIAGNOSTIC_CHARS: usize = 4000;
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 // MP4 호환 우선: H.264 영상과 AAC 오디오를 먼저 고르고, 없으면 단계적으로 폴백한다.
 const MP4_COMPATIBLE_FORMAT: &str =
     "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*+ba[acodec^=mp4a]/bv*+ba/b";
@@ -264,6 +266,7 @@ impl DownloaderRunner {
     {
         let output_template = request.destination.join("%(title)s [%(id)s].%(ext)s");
         let mut command = Command::new(&self.command.program);
+        configure_child_process(&mut command);
         command
             .args(&self.command.prefix_arguments)
             .envs(
@@ -418,6 +421,17 @@ impl DownloaderRunner {
             diagnostic_log,
         })
     }
+}
+
+fn configure_child_process(command: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = command;
 }
 
 fn push_bounded(buffer: &mut Vec<String>, line: String, capacity: usize) {

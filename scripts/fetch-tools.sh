@@ -91,6 +91,7 @@ case "$TARGET" in
   x86_64-pc-windows-msvc)
     PYTHON_TARGETS=(x86_64-pc-windows-msvc)
     fetch_python x86_64-pc-windows-msvc c1dc1e267f2a81493ce6e94837263f648f1eb6d0df73a1492469c1fed025ce8f
+    bash "$ROOT/scripts/prune-bundled-python.sh" "$PYTHON_OUT/x86_64-pc-windows-msvc"
     fetch_deno x86_64-pc-windows-msvc deno-x86_64-pc-windows-msvc.zip 1b968541d115420ba04f7a5fbb5d0f8d620d9d87d492b66da5c97ca07e269b9b "$OUT/deno-$TARGET.exe"
     bash "$ROOT/scripts/build-ffmpeg.sh" "$TARGET"
     ;;
