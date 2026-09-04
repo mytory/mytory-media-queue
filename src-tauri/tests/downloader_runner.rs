@@ -58,6 +58,24 @@ fn runs_yt_dlp_from_the_bundled_python_environment_with_the_bundled_runtime() {
 }
 
 #[test]
+fn tolerates_non_utf8_downloader_output() {
+    let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
+    let request = DownloaderRequest::new("simulator://non-utf8-output", "/downloads");
+
+    let run = DownloaderRunner::new(simulator).run(&request).unwrap();
+
+    assert!(run.succeeded);
+    assert!(matches!(
+        run.events.as_slice(),
+        [
+            DownloaderEvent::Started { .. },
+            DownloaderEvent::Progress { .. },
+            DownloaderEvent::Succeeded { .. }
+        ]
+    ));
+}
+
+#[test]
 fn accepts_raw_yt_dlp_progress_fields_when_the_total_size_is_only_an_estimate() {
     let simulator = PathBuf::from(env!("CARGO_BIN_EXE_downloader-simulator"));
     let request = DownloaderRequest::new("simulator://estimated-progress", "/downloads");

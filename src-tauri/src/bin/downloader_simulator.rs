@@ -1,4 +1,4 @@
-use std::{env, process, thread::sleep, time::Duration};
+use std::{env, io::Write, process, thread::sleep, time::Duration};
 
 const PROGRESS_TEMPLATE: &str = "download:MYTORY_PROGRESS:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress.total_bytes_estimate)s:%(progress.speed)s:%(progress.eta)s";
 const OUTPUT_TEMPLATE: &str = "%(title)s [%(id)s].%(ext)s";
@@ -53,6 +53,15 @@ fn main() {
         }
         "simulator://estimated-progress" => {
             println!("MYTORY_PROGRESS:524288:NA:1048576:1048576:12");
+        }
+        "simulator://non-utf8-output" => {
+            std::io::stdout()
+                .write_all(b"[download] \xFF\n")
+                .expect("simulator stdout must be writable");
+            std::io::stderr()
+                .write_all(b"WARNING: \xFF\n")
+                .expect("simulator stderr must be writable");
+            println!("MYTORY_PROGRESS:524288:1048576:NA:1048576:12");
         }
         "simulator://decimal-progress" => {
             println!("MYTORY_PROGRESS:524288:1048576:NA:1048576.5:12.9");

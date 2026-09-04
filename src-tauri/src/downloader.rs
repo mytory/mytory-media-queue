@@ -499,13 +499,29 @@ where
     R: io::Read + Send + 'static,
 {
     thread::spawn(move || {
-        for line in BufReader::new(reader).lines() {
-            let stream_line = match line {
-                Ok(line) => match kind {
-                    StreamKind::StandardOutput => StreamLine::StandardOutput(line),
-                    StreamKind::StandardError => StreamLine::StandardError(line),
-                },
-                Err(error) => StreamLine::ReadError(error),
+        let mut reader = BufReader::new(reader);
+        let mut bytes = Vec::new();
+        loop {
+            bytes.clear();
+            let read = match reader.read_until(b'\n', &mut bytes) {
+                Ok(0) => break,
+                Ok(read) => read,
+                Err(error) => {
+                    let _ = sender.send(StreamLine::ReadError(error));
+                    break;
+                }
+            };
+            debug_assert!(read > 0);
+            if bytes.last() == Some(&b'\n') {
+                bytes.pop();
+                if bytes.last() == Some(&b'\r') {
+                    bytes.pop();
+                }
+            }
+            let line = String::from_utf8_lossy(&bytes).into_owned();
+            let stream_line = match kind {
+                StreamKind::StandardOutput => StreamLine::StandardOutput(line),
+                StreamKind::StandardError => StreamLine::StandardError(line),
             };
 
             if sender.send(stream_line).is_err() {
