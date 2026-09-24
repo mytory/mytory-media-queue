@@ -1,6 +1,6 @@
 [package]
 name = "mytory-media-queue"
-version = "1.0.3"
+version = "1.0.4"
 description = "A local-first desktop media download queue"
 license = "GPL-3.0-or-later"
 authors = ["Mytory"]
@@ -40,4 +40,3 @@ simulator = []
 name = "downloader-simulator"
 path = "src/bin/downloader_simulator.rs"
 required-features = ["simulator"]
-

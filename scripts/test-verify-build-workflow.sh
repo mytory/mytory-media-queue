@@ -21,3 +21,8 @@ done
 
 [[ "$(grep -Fc '          path: ${{ matrix.bundle_files }}' "$WORKFLOW")" == 1 ]]
 [[ "$(grep -Fc '          files: ${{ matrix.bundle_files }}' "$WORKFLOW")" == 1 ]]
+
+grep -Fqx '  publish-managed-update-manifest:' "$WORKFLOW"
+grep -Fqx '          tag_name: managed-tools-v1' "$WORKFLOW"
+grep -Fqx '        run: cp docs/managed-tools-manifest.json manifest.json' "$WORKFLOW"
+grep -Fqx '          files: manifest.json' "$WORKFLOW"

@@ -126,3 +126,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/binaries/ffmpeg-source/ffmpeg-7.1.1.tar.xz
+
+  publish-managed-update-manifest:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage managed update manifest
+        run: cp docs/managed-tools-manifest.json manifest.json
+
+      - name: Publish managed update manifest
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: managed-tools-v1
+          target_commitish: ${{ github.sha }}
+          name: Managed tools
+          body: Managed Update manifest for Downloader and Bundled Extractor.
+          make_latest: false
+          files: manifest.json
