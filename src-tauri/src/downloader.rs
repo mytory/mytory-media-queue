@@ -22,9 +22,9 @@ const MAX_STDERR_TAIL_LINES: usize = 30;
 const MAX_DIAGNOSTIC_CHARS: usize = 4000;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
-// MP4 호환 우선: H.264 영상과 AAC 오디오를 먼저 고르고, 없으면 단계적으로 폴백한다.
+// MP4 호환 우선: 모든 선택 경로에서 H.264 영상만 허용한다.
 const MP4_COMPATIBLE_FORMAT: &str =
-    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*+ba[acodec^=mp4a]/bv*+ba/b";
+    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*[vcodec^=avc1]";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DownloaderRequest {

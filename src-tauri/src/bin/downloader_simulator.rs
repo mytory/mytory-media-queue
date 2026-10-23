@@ -71,7 +71,7 @@ fn main() {
                 &arguments,
                 &[
                     "-f",
-                    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*+ba[acodec^=mp4a]/bv*+ba/b",
+                    "bv*[vcodec^=avc1]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba/bv*[vcodec^=avc1]",
                     "--merge-output-format",
                 ],
             );
