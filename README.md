@@ -61,6 +61,16 @@ cargo test --manifest-path src-tauri/Cargo.toml
 - 버전 릴리스: 태그를 푸시하면 설치 파일이 GitHub Release에 첨부됩니다.
 - CI와 로컬 빌드는 `scripts/fetch-tools.sh <target-triple>`로 고정 버전의 Bundled Python, Downloader·Bundled Extractor wheel, Bundled Runtime을 내려받고 SHA-256을 검증합니다. Bundled Media Toolchain은 고정 FFmpeg source archive의 SHA-256을 검증한 뒤 자체 빌드합니다.
 
+## macOS에서 설치
+
+터미널에서 다음 명령을 실행하면 최신 GitHub 릴리스의 Universal DMG를 내려받아 `~/Applications`에 설치합니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mytory/mytory-media-queue/main/install-mac.sh | bash
+```
+
+앱은 `~/Applications/Mytory Media Queue.app`에 설치됩니다. macOS가 개발자를 확인할 수 없다고 알리면 Finder에서 앱을 Control-클릭하고 **열기**를 선택하세요.
+
 ## 라이선스 및 제3자 소프트웨어
 
 이 프로젝트는 [GPL-3.0-or-later](LICENSE)로 배포됩니다.
