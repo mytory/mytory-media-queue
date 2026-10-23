@@ -1,35 +1,41 @@
 #!/bin/bash
 set -euo pipefail
 
-REPOSITORY="mytory/mytory-media-queue"
-API_URL="https://api.github.com/repos/${REPOSITORY}/releases/latest"
+REPOSITORY_URL="https://github.com/mytory/mytory-media-queue.git"
 APP_NAME="Mytory Media Queue.app"
 INSTALL_DIR="${HOME}/Applications"
 TARGET_APP="${INSTALL_DIR}/${APP_NAME}"
+SOURCE_DIR=""
+WORK_DIR=""
+STAGE_DIR=""
+BACKUP_APP=""
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "이 설치 스크립트는 macOS에서만 실행할 수 있습니다." >&2
   exit 1
 fi
 
-for command_name in curl hdiutil ditto python3; do
+for command_name in git curl node npm rustup cargo make clang lipo shasum unzip tar; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "필요한 명령을 찾을 수 없습니다: $command_name" >&2
+    echo "Xcode Command Line Tools, Node.js, Rust를 설치한 뒤 다시 실행하세요." >&2
     exit 1
   fi
 done
 
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo "Xcode Command Line Tools가 필요합니다. xcode-select --install을 실행하세요." >&2
+  exit 1
+fi
+
+if [[ "$#" -gt 1 ]]; then
+  echo "사용법: install-mac.sh [저장소 경로]" >&2
+  exit 1
+fi
+
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mytory-media-queue.XXXXXX")"
-MOUNT_DIR="${WORK_DIR}/mount"
-STAGE_DIR=""
-BACKUP_APP=""
-MOUNTED=0
-mkdir "$MOUNT_DIR"
 
 cleanup() {
-  if [[ "$MOUNTED" -eq 1 ]]; then
-    hdiutil detach "$MOUNT_DIR" -quiet || true
-  fi
   if [[ -n "$BACKUP_APP" && -d "$BACKUP_APP" && ! -e "$TARGET_APP" ]]; then
     mv "$BACKUP_APP" "$TARGET_APP" || true
   fi
@@ -40,31 +46,34 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "최신 macOS 설치 파일 정보를 가져옵니다..."
-curl --fail --location --silent --show-error "$API_URL" -o "${WORK_DIR}/release.json"
-DMG_URL="$(python3 - "${WORK_DIR}/release.json" <<'PY'
-import json
-import sys
+if [[ "$#" -eq 1 ]]; then
+  if [[ ! -d "$1" ]]; then
+    echo "저장소 경로가 없습니다: $1" >&2
+    exit 1
+  fi
+  SOURCE_DIR="$(cd "$1" && pwd)"
+  if [[ ! -f "${SOURCE_DIR}/package.json" || ! -f "${SOURCE_DIR}/src-tauri/tauri.conf.json" ]]; then
+    echo "유효한 Mytory Media Queue 저장소 경로가 아닙니다: $SOURCE_DIR" >&2
+    exit 1
+  fi
+else
+  SOURCE_DIR="${WORK_DIR}/source"
+  echo "소스 코드를 내려받습니다..."
+  git clone --depth 1 "$REPOSITORY_URL" "$SOURCE_DIR"
+fi
 
-with open(sys.argv[1], encoding="utf-8") as release_file:
-    release = json.load(release_file)
+cd "$SOURCE_DIR"
+echo "Universal macOS용 빌드 도구를 준비합니다..."
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+npm ci
+bash scripts/fetch-tools.sh universal-apple-darwin
 
-assets = [asset["browser_download_url"] for asset in release.get("assets", [])
-          if asset.get("name", "").lower().endswith(".dmg")]
-if len(assets) != 1:
-    raise SystemExit(f"최신 릴리스에서 DMG 파일을 하나 찾을 수 없습니다 (발견: {len(assets)}개).")
-print(assets[0])
-PY
-)"
+echo "앱을 빌드합니다. 내장 FFmpeg 컴파일 때문에 시간이 걸릴 수 있습니다..."
+npm run tauri build -- --bundles app --target universal-apple-darwin
 
-echo "DMG를 다운로드합니다..."
-curl --fail --location --silent --show-error "$DMG_URL" -o "${WORK_DIR}/app.dmg"
-hdiutil attach -quiet -nobrowse -readonly -mountpoint "$MOUNT_DIR" "${WORK_DIR}/app.dmg"
-MOUNTED=1
-
-SOURCE_APP="$(find "$MOUNT_DIR" -type d -name "$APP_NAME" -print -quit)"
-if [[ -z "$SOURCE_APP" ]]; then
-  echo "DMG에서 ${APP_NAME}을(를) 찾을 수 없습니다." >&2
+SOURCE_APP="${SOURCE_DIR}/src-tauri/target/universal-apple-darwin/release/bundle/macos/${APP_NAME}"
+if [[ ! -d "$SOURCE_APP" ]]; then
+  echo "빌드 결과에서 ${APP_NAME}을(를) 찾을 수 없습니다: $SOURCE_APP" >&2
   exit 1
 fi
 

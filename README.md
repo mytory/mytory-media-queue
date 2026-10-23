@@ -63,13 +63,13 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## macOS에서 설치
 
-터미널에서 다음 명령을 실행하면 최신 GitHub 릴리스의 Universal DMG를 내려받아 `~/Applications`에 설치합니다.
+터미널에서 다음 명령을 실행하면 저장소를 내려받아 Universal macOS 앱을 빌드한 뒤 `~/Applications`에 설치합니다. 첫 빌드에는 Xcode Command Line Tools, Node.js(`package.json`의 엔진 버전), Rust가 필요하며 내장 FFmpeg을 컴파일하므로 시간이 걸릴 수 있습니다.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mytory/mytory-media-queue/main/install-mac.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mytory/mytory-media-queue/master/install-mac.sh | bash
 ```
 
-앱은 `~/Applications/Mytory Media Queue.app`에 설치됩니다. macOS가 개발자를 확인할 수 없다고 알리면 Finder에서 앱을 Control-클릭하고 **열기**를 선택하세요.
+앱은 `~/Applications/Mytory Media Queue.app`에 설치됩니다. 현재 저장소 코드를 빌드하려면 `./install-mac.sh .`을 실행하세요. 로컬 빌드는 Apple Developer ID 서명·공증을 하지 않으므로 macOS 보안 안내가 나타날 수 있습니다.
 
 ## 라이선스 및 제3자 소프트웨어
 
