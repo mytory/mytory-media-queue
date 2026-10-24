@@ -4,7 +4,7 @@
 
 비용 문제로 인증을 받지 못한 것이니 양해 바랍니다.
 
-## 맥에서 설치하기 (개발자라면 install-mac.sh로 설치할 수 있습니다. Xcode Command Line Tools, Node.js, Rust가 필요합니다.)
+## 맥에서 설치하기
 
 맥에서는 설치하고 나서 실행하면 이렇게 확인할 수 없는 프로그램이라고 휴지통으로 이동 버튼이 나올 겁니다.
 
@@ -19,3 +19,5 @@ sudo xattr -d com.apple.quarantine /Applications/Mytory\ Media\ Queue.app
 비밀번호를 입력하라고 나오면 입력을 하는데요, 입력을 해도 뭔가 입력되는 표시가 되지 않습니다. 안심하세요. 비밀번호라서 아예 아무것도 입력하지 않는 것처럼 보이는 것입니다. 비밀번호를 정확히 친 다음 엔터치면 됩니다.
 
 아무 것도 출력되지 않으면 잘 된 것입니다. 이제 다시 실행해 보면 잘 되는 것을 볼 수 있습니다.
+
+(개발자라면 install-mac.sh로 설치할 수 있습니다. Xcode Command Line Tools, Node.js, Rust가 필요합니다.)
