@@ -70,7 +70,8 @@ cargo test --manifest-path src-tauri/Cargo.toml
   3. 결정한 버전과 이유를 사용자에게 보고하고 승인을 받습니다.
   4. 승인 후 `package.json` 버전을 업데이트합니다.
   5. `README.md`를 해당 릴리스 내용에 맞게 업데이트합니다.
-  6. 변경 사항을 커밋합니다.
-  7. 사용자가 승인하면 `git tag -a vX.Y.Z -m "Release vX.Y.Z"`로 주석 태그를 생성합니다.
-  8. 직접 푸시하지 않고, 사용자에게 `git push origin <branch> --tags` 등 필요한 브랜치·태그 푸시 명령을 안내합니다.
+  6. GitHub Release 설명은 [`docs/RELEASE_TEMPLATE.md`](docs/RELEASE_TEMPLATE.md)를 그대로 사용합니다. 워크플로가 이 파일을 게시하도록 유지하고, 설치 안내 문구를 바꿔야 하면 템플릿과 릴리스 설명을 함께 갱신합니다.
+  7. 변경 사항을 커밋합니다.
+  8. 사용자가 승인하면 `git tag -a vX.Y.Z -m "Release vX.Y.Z"`로 주석 태그를 생성합니다.
+  9. 직접 푸시하지 않고, 사용자에게 `git push origin <branch> --tags` 등 필요한 브랜치·태그 푸시 명령을 안내합니다.
 - 릴리스 태그·푸시는 사용자가 명시적으로 승인한 경우에만 실행합니다.
